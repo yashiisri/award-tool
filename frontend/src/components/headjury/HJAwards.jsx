@@ -55,7 +55,10 @@ export default function HJAwards() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {awards.map(award => (
-            <div key={award.id} onClick={() => navigate(`/head_jury/nominees?award=${award.id}`)}
+            <div key={award.id} onClick={() => {
+                localStorage.setItem('hj_selected_award', award.id)
+                navigate(`/head_jury/nominees?award=${award.id}`)
+              }}
               className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg hover:border-[#7F3F98]/20 transition-all cursor-pointer hover:-translate-y-0.5">
               <div className="w-11 h-11 bg-[#F5EEF8] rounded-xl flex items-center justify-center mb-4"><Award className="w-5 h-5 text-[#7F3F98]" /></div>
               <h3 className="font-black text-[#1a1a2e] text-base mb-2">{award.name}</h3>

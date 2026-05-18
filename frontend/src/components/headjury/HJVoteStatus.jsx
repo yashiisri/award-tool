@@ -1,37 +1,116 @@
 import { useState, useEffect } from 'react'
-import { BarChart3, RefreshCw, Star, Trophy } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { BarChart3, RefreshCw, Trophy, Building2, ChevronDown, Users } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 
+const MEDALS = ['🥇', '🥈', '🥉']
+
+function RankBadge({ rank }) {
+  if (rank <= 3) return <span className="text-lg">{MEDALS[rank - 1]}</span>
+  return (
+    <span className="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-500 text-xs font-black rounded-lg">
+      #{rank}
+    </span>
+  )
+}
+
 export default function HJVoteStatus() {
-  const [votes, setVotes] = useState([])
+  const [searchParams] = useSearchParams()
+  const awardFromUrl = searchParams.get('award')
+
+  const [rankings, setRankings] = useState([])
+  const [awards, setAwards] = useState([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { fetchVotes() }, [])
+  useEffect(() => { fetchAll() }, [])
 
-  const fetchVotes = async () => {
+  const fetchAll = async () => {
     setLoading(true)
-    try { const { data } = await api.get('/head-jury/vote-status'); setVotes(data) }
-    catch (e) {} finally { setLoading(false) }
+    try {
+      const [rankRes, awardRes] = await Promise.all([
+        api.get('/head-jury/ranking-status'),
+        api.get('/jury/awards'),
+      ])
+      setRankings(rankRes.data)
+      setAwards(awardRes.data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const byJury = votes.reduce((acc, v) => { if (!acc[v.jury_id]) acc[v.jury_id] = []; acc[v.jury_id].push(v); return acc }, {})
+  // Filter by award from URL (or show all)
+  const filtered = awardFromUrl
+    ? rankings.filter(r => r.award_id === awardFromUrl)
+    : rankings
+
+  // Group by jury_id
+  const byJury = filtered.reduce((acc, r) => {
+    if (!acc[r.jury_id]) acc[r.jury_id] = { jury_id: r.jury_id, awards: {} }
+    if (!acc[r.jury_id].awards[r.award_id]) {
+      acc[r.jury_id].awards[r.award_id] = { award_name: r.award_name, entries: [] }
+    }
+    acc[r.jury_id].awards[r.award_id].entries.push(r)
+    return acc
+  }, {})
+
+  // Sort each jury's entries by rank
+  Object.values(byJury).forEach(jury => {
+    Object.values(jury.awards).forEach(aw => {
+      aw.entries.sort((a, b) => a.rank - b.rank)
+    })
+  })
+
+  // Aggregate: total points per nominee across all jury members (for selected award)
+  const nomineePoints = filtered.reduce((acc, r) => {
+    const key = r.nominee_id
+    if (!acc[key]) acc[key] = { name: r.nominee_name, org: r.nominee_org, points: 0, votes: 0 }
+    acc[key].points += r.points
+    acc[key].votes += 1
+    return acc
+  }, {})
+  const leaderboard = Object.values(nomineePoints).sort((a, b) => b.points - a.points)
+
+  const totalJurors = Object.keys(byJury).length
+  const totalPoints = filtered.reduce((s, r) => s + r.points, 0)
 
   return (
     <div className="p-8">
-      <PageHeader icon={BarChart3} title="Vote Status" subtitle="Live overview of all jury votes and rankings" accent="#7F3F98" light="#F5EEF8"
+      <PageHeader
+        icon={BarChart3}
+        title="Jury Ranking Status"
+        subtitle="Live overview of all jury rankings and nominee standings"
+        accent="#7F3F98"
+        light="#F5EEF8"
         action={
-          <button onClick={fetchVotes} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-[#7F3F98] text-sm font-medium transition-all shadow-sm">
+          <button
+            onClick={fetchAll}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-[#7F3F98] text-sm font-medium transition-all shadow-sm"
+          >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
         }
       />
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      {/* Award pill — shows selected award or "All Awards" */}
+      {awardFromUrl && awards.find(a => a.id === awardFromUrl) && (
+        <div className="mb-6 flex items-center gap-3 p-4 bg-[#F5EEF8] border border-[#7F3F98]/15 rounded-xl">
+          <Trophy className="w-5 h-5 text-[#7F3F98] flex-shrink-0" />
+          <div>
+            <p className="font-bold text-[#7F3F98] text-sm">{awards.find(a => a.id === awardFromUrl)?.name}</p>
+            <p className="text-gray-400 text-xs">Select from Awards to change</p>
+          </div>
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: 'Total Votes', value: votes.length, color: '#7F3F98' },
-          { label: 'Jury Members Voted', value: Object.keys(byJury).length, color: '#0091DA' },
-          { label: 'Total Points Awarded', value: votes.reduce((s, v) => s + (v.points || 0), 0), color: '#00338D' },
+          { label: 'Total Rankings',      value: filtered.length,  color: '#7F3F98' },
+          { label: 'Jury Members Ranked', value: totalJurors,       color: '#0091DA' },
+          { label: 'Total Points Given',  value: totalPoints,       color: '#00338D' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
             <div className="text-2xl font-black mb-1" style={{ color }}>{value}</div>
@@ -40,37 +119,97 @@ export default function HJVoteStatus() {
         ))}
       </div>
 
-      {Object.keys(byJury).length === 0 ? (
+      {rankings.length === 0 && !loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
-          <BarChart3 className="w-10 h-10 text-gray-300 mb-3" />
-          <p className="text-gray-400 text-sm">No votes recorded yet.</p>
+          <Trophy className="w-10 h-10 text-gray-300 mb-3" />
+          <p className="text-gray-400 text-sm">No jury rankings submitted yet.</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {Object.entries(byJury).map(([juryId, juryVotes]) => (
-            <div key={juryId} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-              <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
-                <div className="w-9 h-9 bg-[#7F3F98] rounded-xl flex items-center justify-center">
-                  <span className="text-white text-sm font-black">{juryId?.[0]?.toUpperCase()}</span>
-                </div>
-                <span className="font-bold text-[#1a1a2e] text-sm">{juryId}</span>
-                <span className="text-gray-400 text-xs ml-1">· {juryVotes.length} votes · {juryVotes.reduce((s, v) => s + (v.points || 0), 0)} pts total</span>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+          {/* ── Aggregate Leaderboard ── */}
+          {leaderboard.length > 0 && (
+            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-[#7F3F98]/5 to-[#0091DA]/5 border-b border-gray-100">
+                <Trophy className="w-5 h-5 text-[#7F3F98]" />
+                <span className="font-black text-[#1a1a2e] text-sm">Aggregate Leaderboard</span>
+                <span className="text-gray-400 text-xs ml-1">· combined jury points</span>
               </div>
               <div className="divide-y divide-gray-50">
-                {juryVotes.map(v => (
-                  <div key={v.id} className="flex items-center justify-between px-6 py-3">
-                    <span className="text-gray-600 text-sm">Nominee: {v.nominee_id?.slice(-8)}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1 px-2 py-1 bg-[#F5EEF8] text-[#7F3F98] text-xs rounded-lg font-bold">
-                        <Trophy className="w-3 h-3" /> Rank #{v.rank}
-                      </span>
-                      <span className="font-black text-[#7F3F98] text-sm">{v.points} pts</span>
+                {leaderboard.map((nom, i) => (
+                  <div key={nom.name + i} className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50/50 transition-colors">
+                    <div className="w-8 flex items-center justify-center flex-shrink-0">
+                      <RankBadge rank={i + 1} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-[#1a1a2e] text-sm truncate">{nom.name}</div>
+                      <div className="flex items-center gap-1 text-gray-400 text-xs">
+                        <Building2 className="w-3 h-3" />{nom.org}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-black text-[#7F3F98] text-base">{nom.points}</div>
+                      <div className="text-gray-400 text-xs">{nom.votes} vote{nom.votes !== 1 ? 's' : ''}</div>
+                    </div>
+                    <div className="w-20 flex-shrink-0">
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#7F3F98] to-[#0091DA] rounded-full transition-all"
+                          style={{ width: `${(nom.points / (leaderboard[0]?.points || 1)) * 100}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-          ))}
+          )}
+
+          {/* ── Per-Jury Breakdown ── */}
+          <div className="space-y-4">
+            {Object.values(byJury).map(jury => (
+              <div key={jury.jury_id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
+                  <div className="w-9 h-9 bg-[#7F3F98] rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Users className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-[#1a1a2e] text-sm">{jury.jury_id}</span>
+                    <span className="text-gray-400 text-xs ml-2">
+                      · {filtered.filter(r => r.jury_id === jury.jury_id).length} nominees ranked
+                    </span>
+                  </div>
+                </div>
+
+                {Object.values(jury.awards).map(aw => (
+                  <div key={aw.award_name}>
+                    {Object.keys(jury.awards).length > 1 && (
+                      <div className="px-6 py-2 bg-[#F5EEF8]/50 border-b border-gray-50">
+                        <span className="text-xs font-bold text-[#7F3F98]">{aw.award_name}</span>
+                      </div>
+                    )}
+                    <div className="divide-y divide-gray-50">
+                      {aw.entries.map(entry => (
+                        <div key={entry.nominee_id} className="flex items-center justify-between px-6 py-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <RankBadge rank={entry.rank} />
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-700 truncate">{entry.nominee_name}</div>
+                              <div className="text-xs text-gray-400 truncate">{entry.nominee_org}</div>
+                            </div>
+                          </div>
+                          <span className="font-black text-[#7F3F98] text-sm flex-shrink-0 ml-3">
+                            {entry.points} pts
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
         </div>
       )}
     </div>

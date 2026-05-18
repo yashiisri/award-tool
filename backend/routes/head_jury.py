@@ -137,6 +137,63 @@ async def get_vote_status(user=Depends(get_current_user)):
     votes = await db.votes.find().sort("created_at", -1).to_list(500)
     return [serialize(v) for v in votes]
 
+
+@router.get("/ranking-status")
+async def get_ranking_status(user=Depends(get_current_user)):
+    """
+    Return all jury rankings grouped by award, with nominee names resolved.
+    Used by Head Jury to see how each jury member ranked nominees.
+    """
+    if user["role"] != "head_jury":
+        raise HTTPException(status_code=403)
+    db = get_database()
+
+    rankings = await db.jury_rankings.find().sort("created_at", -1).to_list(1000)
+
+    # Resolve nominee names
+    nominee_ids = list({r["nominee_id"] for r in rankings})
+    nominees_map = {}
+    for nid in nominee_ids:
+        try:
+            nom = await db.nominees.find_one({"_id": ObjectId(nid)})
+            if nom:
+                nominees_map[nid] = {
+                    "name":         nom.get("name", ""),
+                    "designation":  nom.get("designation", ""),
+                    "organisation": nom.get("organisation", ""),
+                }
+        except Exception:
+            pass
+
+    # Resolve award names
+    award_ids = list({r["award_id"] for r in rankings})
+    awards_map = {}
+    for aid in award_ids:
+        try:
+            award = await db.awards.find_one({"_id": ObjectId(aid)})
+            if award:
+                awards_map[aid] = award.get("name") or award.get("title") or aid
+        except Exception:
+            pass
+
+    result = []
+    for r in rankings:
+        nid = r["nominee_id"]
+        result.append({
+            "id":           str(r["_id"]),
+            "award_id":     r["award_id"],
+            "award_name":   awards_map.get(r["award_id"], r["award_id"]),
+            "jury_id":      r["jury_id"],
+            "nominee_id":   nid,
+            "nominee_name": nominees_map.get(nid, {}).get("name", nid),
+            "nominee_org":  nominees_map.get(nid, {}).get("organisation", ""),
+            "rank":         r["rank"],
+            "points":       r["points"],
+            "created_at":   r["created_at"].isoformat() if r.get("created_at") else "",
+        })
+
+    return result
+
 @router.get("/audit-logs")
 async def get_audit_logs(user=Depends(get_current_user)):
     if user["role"] != "head_jury":
@@ -144,3 +201,94 @@ async def get_audit_logs(user=Depends(get_current_user)):
     db = get_database()
     logs = await db.audit_logs.find().sort("timestamp", -1).to_list(500)
     return [serialize(l) for l in logs]
+
+
+# ── Head Jury Results (their own ranking = the official result) ────────────────
+
+@router.get("/my-results/{award_id}")
+async def get_hj_results(award_id: str, user=Depends(get_current_user)):
+    """
+    Return the head jury's own ranking for an award as the official result.
+    Nominees are sorted by the head jury's submitted rank (1 = winner).
+    Returns [] if head jury hasn't submitted a ranking yet.
+    """
+    if user["role"] != "head_jury":
+        raise HTTPException(status_code=403)
+    db = get_database()
+
+    # Get head jury's own rankings for this award
+    hj_rankings = await db.jury_rankings.find(
+        {"award_id": award_id, "jury_id": user["sub"]}
+    ).sort("rank", 1).to_list(100)
+
+    if not hj_rankings:
+        return []
+
+    # Resolve nominee details
+    results = []
+    for r in hj_rankings:
+        try:
+            nom = await db.nominees.find_one({"_id": ObjectId(r["nominee_id"])})
+            if nom:
+                results.append({
+                    "rank":         r["rank"],
+                    "points":       r["points"],
+                    "nominee_id":   r["nominee_id"],
+                    "name":         nom.get("name", ""),
+                    "designation":  nom.get("designation", ""),
+                    "organisation": nom.get("organisation", ""),
+                    "photo_url":    nom.get("photo_url", ""),
+                })
+        except Exception:
+            pass
+
+    return results
+
+
+@router.get("/my-results")
+async def get_all_hj_results(user=Depends(get_current_user)):
+    """
+    Return head jury's rankings for ALL awards they have submitted.
+    """
+    if user["role"] != "head_jury":
+        raise HTTPException(status_code=403)
+    db = get_database()
+
+    # Get all awards
+    awards = await db.awards.find().to_list(100)
+    all_results = []
+
+    for award in awards:
+        award_id = str(award["_id"])
+        hj_rankings = await db.jury_rankings.find(
+            {"award_id": award_id, "jury_id": user["sub"]}
+        ).sort("rank", 1).to_list(100)
+
+        if not hj_rankings:
+            continue
+
+        nominees_ranked = []
+        for r in hj_rankings:
+            try:
+                nom = await db.nominees.find_one({"_id": ObjectId(r["nominee_id"])})
+                if nom:
+                    nominees_ranked.append({
+                        "rank":         r["rank"],
+                        "points":       r["points"],
+                        "nominee_id":   r["nominee_id"],
+                        "name":         nom.get("name", ""),
+                        "designation":  nom.get("designation", ""),
+                        "organisation": nom.get("organisation", ""),
+                        "photo_url":    nom.get("photo_url", ""),
+                    })
+            except Exception:
+                pass
+
+        if nominees_ranked:
+            all_results.append({
+                "award_id":   award_id,
+                "award_name": award.get("name") or award.get("title") or award_id,
+                "nominees":   nominees_ranked,
+            })
+
+    return all_results

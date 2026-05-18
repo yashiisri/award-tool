@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Users, CheckCircle, MessageSquare, Flag, X, Send, Building2, Briefcase, ChevronDown, Award, AlertTriangle } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { Users, CheckCircle, MessageSquare, Flag, X, Send, Building2, Briefcase, ChevronDown, Award, AlertTriangle, ArrowRight } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 import NomineeProfileCard from '../admin/NomineeProfileCard'
 
 export default function JuryNominees() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const preAward = searchParams.get('award')
 
   const [awards, setAwards] = useState([])
@@ -71,17 +72,20 @@ export default function JuryNominees() {
     <div className="p-8">
       <PageHeader icon={Users} title="Nominees & Validation" subtitle="Review nominees and submit your validation or comments" accent="#0091DA" light="#EAF5FC" />
 
-      <div className="mb-6">
-        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Award</label>
-        <div className="relative w-full max-w-sm">
-          <select value={selectedAward} onChange={e => setSelectedAward(e.target.value)}
-            className="w-full appearance-none px-4 py-3 bg-white border border-gray-200 rounded-xl text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#0091DA]/30 text-sm shadow-sm pr-10">
-            <option value="">Choose an award</option>
-            {awards.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+      {/* Award selector — only shown when no award was pre-selected from Awards page */}
+      {!preAward && (
+        <div className="mb-6">
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Award</label>
+          <div className="relative w-full max-w-sm">
+            <select value={selectedAward} onChange={e => setSelectedAward(e.target.value)}
+              className="w-full appearance-none px-4 py-3 bg-white border border-gray-200 rounded-xl text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#0091DA]/30 text-sm shadow-sm pr-10">
+              <option value="">Choose an award</option>
+              {awards.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
         </div>
-      </div>
+      )}
 
       {currentAward && (
         <div className="mb-6 p-4 bg-[#EAF5FC] border border-[#0091DA]/15 rounded-xl flex items-center gap-3">
@@ -99,53 +103,136 @@ export default function JuryNominees() {
           <p className="text-gray-400 text-sm">No nominees for this award yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {nominees.map(nom => {
             const isValidated = validated.has(nom.id)
+            const isFlagged   = nom.red_flagged
+
             return (
-              <div key={nom.id} className={`bg-white border rounded-2xl overflow-hidden hover:shadow-lg transition-all ${nom.red_flagged ? 'border-red-200' : 'border-gray-100 hover:border-[#0091DA]/20'}`}>
-                {/* Photo area */}
-                <div className="h-28 bg-gradient-to-br from-[#EAF5FC] to-[#dce8f5] flex items-center justify-center relative cursor-pointer"
-                  onClick={() => setSelectedNominee(nom)}>
+              <div
+                key={nom.id}
+                className={`
+                  group relative bg-white rounded-3xl overflow-hidden
+                  border-2 transition-all duration-300 ease-out
+                  hover:-translate-y-2 hover:shadow-2xl hover:shadow-[#0091DA]/10
+                  ${isFlagged
+                    ? 'border-red-200 hover:border-red-300'
+                    : isValidated
+                    ? 'border-green-200 hover:border-green-300'
+                    : 'border-gray-100 hover:border-[#0091DA]/30'}
+                `}
+              >
+                {/* ── Avatar banner ── */}
+                <div
+                  className="relative h-44 cursor-pointer overflow-hidden"
+                  onClick={() => setSelectedNominee(nom)}
+                >
+                  {/* Background gradient — always visible, image overlays it */}
+                  <div className={`absolute inset-0 transition-transform duration-500 group-hover:scale-105
+                    ${isFlagged
+                      ? 'bg-gradient-to-br from-red-50 to-red-100'
+                      : 'bg-gradient-to-br from-[#EAF5FC] via-[#dce8f5] to-[#c8dff0]'}`}
+                  />
+
+                  {/* Photo or initials */}
                   {nom.photo_url ? (
-                    <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover" onError={e => e.target.style.display = 'none'} />
+                    <img
+                      src={nom.photo_url}
+                      alt={nom.name}
+                      className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+                      onError={e => { e.target.style.display = 'none' }}
+                    />
                   ) : (
-                    <div className="w-14 h-14 bg-[#0091DA] rounded-full flex items-center justify-center">
-                      <span className="text-white text-xl font-black">{nom.name?.[0]}</span>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className={`
+                        w-16 h-16 rounded-2xl flex items-center justify-center
+                        shadow-lg transition-transform duration-300 group-hover:scale-110
+                        ${isFlagged ? 'bg-red-400' : 'bg-gradient-to-br from-[#0091DA] to-[#00338D]'}
+                      `}>
+                        <span className="text-white text-2xl font-black">{nom.name?.[0]}</span>
+                      </div>
                     </div>
                   )}
-                  {nom.red_flagged && (
-                    <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-red-500 text-white text-xs rounded-lg">
-                      <AlertTriangle className="w-3 h-3" /> Flagged
-                    </div>
-                  )}
-                  {isValidated && (
-                    <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs rounded-lg">
-                      <CheckCircle className="w-3 h-3" /> Validated
-                    </div>
-                  )}
+
+                  {/* Status badges */}
+                  <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
+                    {isValidated && (
+                      <span className="flex items-center gap-1 px-2.5 py-1 bg-green-500 text-white text-xs font-bold rounded-xl shadow-sm">
+                        <CheckCircle className="w-3 h-3" /> Validated
+                      </span>
+                    )}
+                    {isFlagged && (
+                      <span className="flex items-center gap-1 px-2.5 py-1 bg-red-500 text-white text-xs font-bold rounded-xl shadow-sm ml-auto">
+                        <AlertTriangle className="w-3 h-3" /> Flagged
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="p-5">
-                  <h3 className="font-black text-[#1a1a2e] text-sm mb-1 cursor-pointer hover:text-[#0091DA] transition-colors" onClick={() => setSelectedNominee(nom)}>{nom.name}</h3>
-                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5"><Briefcase className="w-3 h-3" />{nom.designation}</div>
-                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-4"><Building2 className="w-3 h-3" />{nom.organisation}</div>
+                {/* ── Card body ── */}
+                <div className="px-5 pt-4 pb-5">
+                  {/* Name */}
+                  <h3
+                    className="font-black text-[#1a1a2e] text-sm leading-snug mb-1 cursor-pointer hover:text-[#0091DA] transition-colors duration-200 line-clamp-1"
+                    onClick={() => setSelectedNominee(nom)}
+                  >
+                    {nom.name}
+                  </h3>
 
+                  {/* Role + org */}
+                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5">
+                    <Briefcase className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">{nom.designation}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-5">
+                    <Building2 className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">{nom.organisation}</span>
+                  </div>
+
+                  {/* Action buttons */}
                   <div className="flex gap-2">
-                    <button onClick={() => handleValidate(nom.id)} disabled={isValidated}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all ${isValidated ? 'bg-green-50 text-green-600 border border-green-200 cursor-not-allowed' : 'bg-[#EAF5FC] text-[#0091DA] border border-[#0091DA]/20 hover:bg-[#0091DA] hover:text-white'}`}>
-                      <CheckCircle className="w-3.5 h-3.5" /> {isValidated ? 'Validated' : 'Validate'}
+                    {/* Validate */}
+                    <button
+                      onClick={() => handleValidate(nom.id)}
+                      disabled={isValidated}
+                      className={`
+                        flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-xs font-bold
+                        transition-all duration-200
+                        ${isValidated
+                          ? 'bg-green-50 text-green-600 border border-green-200 cursor-not-allowed'
+                          : 'bg-[#EAF5FC] text-[#0091DA] border border-[#0091DA]/20 hover:bg-[#0091DA] hover:text-white hover:border-[#0091DA] hover:shadow-md hover:shadow-[#0091DA]/20 active:scale-95'}
+                      `}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      {isValidated ? 'Validated' : 'Validate'}
                     </button>
-                    <button onClick={() => setCommentModal(nom.id)}
-                      className="p-2 bg-gray-50 text-gray-600 border border-gray-200 rounded-xl text-xs font-semibold hover:bg-gray-100 transition-colors">
+
+                    {/* Comment */}
+                    <button
+                      onClick={() => setCommentModal(nom.id)}
+                      className="w-10 h-10 flex items-center justify-center bg-gray-50 text-gray-400 border border-gray-200 rounded-2xl hover:bg-[#EAF5FC] hover:text-[#0091DA] hover:border-[#0091DA]/20 transition-all duration-200 active:scale-95"
+                      title="Add comment"
+                    >
                       <MessageSquare className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => setFlagModal(nom.id)}
-                      className="p-2 bg-orange-50 text-orange-500 border border-orange-200 rounded-xl hover:bg-orange-100 transition-colors">
+
+                    {/* Flag */}
+                    <button
+                      onClick={() => setFlagModal(nom.id)}
+                      className="w-10 h-10 flex items-center justify-center bg-orange-50 text-orange-400 border border-orange-200 rounded-2xl hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all duration-200 active:scale-95"
+                      title="Flag nominee"
+                    >
                       <Flag className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
+
+                {/* ── Hover accent line at bottom ── */}
+                <div className={`
+                  absolute bottom-0 inset-x-0 h-0.5 scale-x-0 group-hover:scale-x-100
+                  transition-transform duration-300 origin-left rounded-full
+                  ${isFlagged ? 'bg-red-400' : isValidated ? 'bg-green-400' : 'bg-gradient-to-r from-[#0091DA] to-[#00338D]'}
+                `} />
               </div>
             )
           })}
@@ -195,6 +282,19 @@ export default function JuryNominees() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating Next → Jury Ranking button */}
+      {selectedAward && nominees.length > 0 && (
+        <button
+          onClick={() => navigate(`/jury/ranking?award=${selectedAward}`)}
+          className="fixed bottom-8 right-8 flex items-center gap-2.5 px-5 py-3.5 bg-gradient-to-r from-[#0091DA] to-[#00338D] text-white rounded-2xl font-bold text-sm shadow-xl hover:opacity-90 hover:scale-105 active:scale-95 transition-all z-40"
+        >
+          Jury Ranking
+          <div className="w-7 h-7 bg-white/20 rounded-xl flex items-center justify-center">
+            <ArrowRight className="w-4 h-4" />
+          </div>
+        </button>
       )}
     </div>
   )

@@ -41,7 +41,10 @@ export default function JuryAwards() {
             const ctrl = controls[award.id] || {}
             const votingOpen = ctrl.voting_enabled
             return (
-              <div key={award.id} onClick={() => navigate(`/jury/nominees?award=${award.id}`)}
+              <div key={award.id} onClick={() => {
+                  localStorage.setItem('jury_selected_award', award.id)
+                  navigate(`/jury/nominees?award=${award.id}`)
+                }}
                 className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-xl hover:border-[#0091DA]/20 transition-all cursor-pointer hover:-translate-y-0.5">
                 {/* Top */}
                 <div className="flex items-start justify-between mb-5">

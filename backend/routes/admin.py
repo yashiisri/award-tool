@@ -7,6 +7,9 @@ from bson import ObjectId
 from datetime import datetime
 from config import settings
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -98,10 +101,20 @@ async def create_award(award: AwardCreate, user=Depends(get_current_user)):
         raise HTTPException(status_code=403)
     db = get_database()
     doc = {**award.dict(), "created_by": user["sub"], "created_at": datetime.utcnow(),
-           "aima_criteria": AIMA_CRITERIA, "results_published": False}
+           "aima_criteria": AIMA_CRITERIA, "results_published": False, "ai_metrics": []}
     result = await db.awards.insert_one(doc)
+    award_id = str(result.inserted_id)
     await log_action(db, user, "create_award", {"award_name": award.name})
-    return {"id": str(result.inserted_id), "message": "Award created"}
+
+    # Async metric extraction — fire and forget so award creation is instant
+    if award.description.strip():
+        import asyncio
+        from services.nominee_service import extract_and_store_metrics
+        asyncio.create_task(
+            extract_and_store_metrics(db, award_id, award.name, award.description)
+        )
+
+    return {"id": award_id, "message": "Award created"}
 
 @router.get("/awards")
 async def get_awards(user=Depends(get_current_user)):
@@ -185,48 +198,90 @@ async def red_flag_nominee(req: RedFlagRequest, user=Depends(get_current_user)):
     await log_action(db, user, "red_flag_nominee", {"nominee_id": req.nominee_id, "reason": req.reason})
     return {"message": "Flagged"}
 
-# ── AI Search (mock data) ──────────────────────────────────────────────────────
-
-MOCK_NOMINEES = [
-    {"name": "Roshni Nadar Malhotra", "designation": "Chairperson", "organisation": "HCLTech",
-     "photo_url": "",
-     "sources": ["Economic Times", "Forbes", "Business Today", "LinkedIn India"],
-     "rationale": "Under Roshni's leadership, HCLTech recorded revenue of INR 1.2 lakh crore (USD 13.7 billion) in FY25, a growth of 6.5% y-o-y. She launched multiple AI platforms including AI Force, AI Labs and AI Foundry. HCLTech's market capitalisation exceeded INR 5.2 lakh crore in 2025. She was conferred with the Chevalier de la Légion d'Honneur by France in 2024."},
-    {"name": "N. Chandrasekaran", "designation": "Chairman", "organisation": "Tata Sons",
-     "photo_url": "",
-     "sources": ["Fortune India", "Economic Times", "Reuters", "Bloomberg"],
-     "rationale": "Chandrasekaran has steered the Tata Group to become India's most valuable conglomerate with a combined market cap exceeding $365 billion. Under his leadership, Tata Motors' EV division and Air India's transformation have been landmark achievements contributing significantly to India's manufacturing and aviation sectors."},
-    {"name": "Kiran Mazumdar-Shaw", "designation": "Executive Chairperson", "organisation": "Biocon",
-     "photo_url": "",
-     "sources": ["Business Today", "Indian Express", "Fortune India", "SEBI Disclosures"],
-     "rationale": "Kiran Mazumdar-Shaw built Biocon into India's largest biopharmaceutical company, pioneering affordable biosimilars that have reached millions of patients globally. Her contributions to India's biotech ecosystem and commitment to affordable healthcare exemplify the AIMA criteria for societal responsibility and organisational excellence."},
-    {"name": "Sajjan Jindal", "designation": "Chairman & MD", "organisation": "JSW Group",
-     "photo_url": "",
-     "sources": ["Economic Times", "Money Control", "MCA (Regulatory)", "Bloomberg"],
-     "rationale": "Sajjan Jindal has grown JSW Group into a $23 billion conglomerate with leadership in steel, energy, infrastructure, and sports. His commitment to sustainability through green steel initiatives and investment in renewable energy demonstrates exemplary corporate governance and contribution to India's industrial growth."},
-    {"name": "Deepinder Goyal", "designation": "CEO & Co-Founder", "organisation": "Zomato",
-     "photo_url": "",
-     "sources": ["Economic Times", "News18", "LinkedIn India", "SEBI Disclosures"],
-     "rationale": "Deepinder Goyal transformed Zomato from a restaurant discovery platform into India's leading food delivery and quick commerce giant. Under his leadership, Zomato achieved profitability and expanded into Blinkit, redefining quick commerce in India and creating thousands of jobs."},
-    {"name": "Falguni Nayar", "designation": "Founder & CEO", "organisation": "Nykaa",
-     "photo_url": "",
-     "sources": ["Fortune India", "Business Today", "Forbes", "Economic Times"],
-     "rationale": "Falguni Nayar founded Nykaa at 49 and built it into India's first woman-led unicorn to go public. Nykaa's IPO in 2021 was one of India's most successful, with a market cap exceeding ₹1 lakh crore, inspiring a generation of entrepreneurs."},
-    {"name": "Mukesh Ambani", "designation": "Chairman & MD", "organisation": "Reliance Industries",
-     "photo_url": "",
-     "sources": ["Fortune 500", "Forbes", "Bloomberg", "Money Control"],
-     "rationale": "Mukesh Ambani has transformed Reliance into a diversified conglomerate spanning telecom, retail, and green energy. Jio brought affordable internet to 450 million users. His $75 billion green energy investment plan positions India as a global clean energy leader."},
-]
+# ── AI Search (real engine) ────────────────────────────────────────────────────
 
 @router.post("/ai-search-nominees")
 async def ai_search_nominees(req: AISearchRequest, user=Depends(get_current_user)):
+    """
+    Real AI-powered nominee research engine.
+
+    Flow:
+      1. Fetch award + stored metrics
+      2. Generate search queries via Llama 3.3
+      3. Search DuckDuckGo + Wikipedia
+      4. Extract high-profile business leaders only
+      5. Rank via Llama 3.3
+      6. Return ranked nominee payloads
+    """
     if user["role"] != "admin":
         raise HTTPException(status_code=403)
+
+    if not settings.GROQ_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="GROQ_KEY is not configured. Please add it to your .env file."
+        )
+
     db = get_database()
     award = await db.awards.find_one({"_id": ObjectId(req.award_id)})
     if not award:
-        raise HTTPException(status_code=404)
-    return MOCK_NOMINEES[:req.num_results]
+        raise HTTPException(status_code=404, detail="Award not found")
+
+    from services.nominee_service import run_ai_nominee_search
+
+    try:
+        nominees = await run_ai_nominee_search(
+            db=db,
+            award_id=req.award_id,
+            num_results=req.num_results,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        logger.exception("AI nominee search failed for award %s", req.award_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI search failed: {str(exc)}"
+        )
+
+    if not nominees:
+        raise HTTPException(
+            status_code=404,
+            detail="No high-profile candidates found. Try a more specific award description."
+        )
+
+    await log_action(db, user, "ai_search_nominees", {
+        "award_id": req.award_id,
+        "num_requested": req.num_results,
+        "num_found": len(nominees),
+    })
+
+    return nominees
+
+
+@router.get("/awards/{award_id}/metrics")
+async def get_award_metrics(award_id: str, user=Depends(get_current_user)):
+    """Return the AI-extracted evaluation metrics for an award."""
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403)
+    db = get_database()
+    award = await db.awards.find_one({"_id": ObjectId(award_id)})
+    if not award:
+        raise HTTPException(status_code=404, detail="Award not found")
+
+    metrics = award.get("ai_metrics", [])
+
+    # If metrics not yet extracted, do it now
+    if not metrics and award.get("description", "").strip():
+        from services.nominee_service import extract_and_store_metrics
+        award_title = award.get("name") or award.get("title") or "Award"
+        metrics = await extract_and_store_metrics(
+            db, award_id, award_title, award.get("description", "")
+        )
+
+    return {"award_id": award_id, "metrics": metrics}
 
 # ── Vote Control ───────────────────────────────────────────────────────────────
 

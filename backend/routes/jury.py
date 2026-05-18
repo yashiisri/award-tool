@@ -40,6 +40,15 @@ class RankVoteRequest(BaseModel):
     nominee_id: str
     rank: int  # 1-5
 
+class RankingEntry(BaseModel):
+    nominee_id: str
+    rank: int
+    points: int
+
+class SubmitRankingRequest(BaseModel):
+    award_id: str
+    rankings: list[RankingEntry]
+
 @router.get("/awards")
 async def get_awards(user=Depends(get_current_user)):
     if user["role"] not in ["jury", "head_jury"]:
@@ -152,3 +161,110 @@ async def get_nominees_legacy(award_id: str, user=Depends(get_current_user)):
     db = get_database()
     nominees = await db.nominees.find({"award_id": award_id}).to_list(100)
     return [serialize(n) for n in nominees]
+
+
+# ── Jury Ranking (drag-and-drop) ───────────────────────────────────────────────
+
+@router.post("/ranking")
+async def submit_ranking(req: SubmitRankingRequest, user=Depends(get_current_user)):
+    """
+    Jury submits their ordered ranking for an award.
+    Each nominee gets a rank (1 = best) and points based on position.
+    Replaces any previous ranking by this jury member for this award.
+    """
+    if user["role"] not in ["jury", "head_jury"]:
+        raise HTTPException(status_code=403, detail="Only jury members can submit rankings")
+
+    db = get_database()
+
+    # Check voting is enabled
+    control = await db.vote_controls.find_one({"award_id": req.award_id})
+    if not control or not control.get("voting_enabled"):
+        raise HTTPException(status_code=403, detail="Voting is not open for this award")
+
+    jury_id = user["sub"]
+
+    # Remove previous ranking by this jury for this award
+    old_rankings = await db.jury_rankings.find(
+        {"award_id": req.award_id, "jury_id": jury_id}
+    ).to_list(100)
+
+    # Reverse old points from nominee totals
+    for old in old_rankings:
+        await db.nominees.update_one(
+            {"_id": ObjectId(old["nominee_id"])},
+            {
+                "$inc": {"total_score": -old["points"]},
+                "$pull": {"voted_by": jury_id},
+            }
+        )
+
+    # Delete old ranking records
+    await db.jury_rankings.delete_many({"award_id": req.award_id, "jury_id": jury_id})
+
+    # Insert new rankings
+    now = datetime.utcnow()
+    docs = []
+    for entry in req.rankings:
+        docs.append({
+            "award_id":    req.award_id,
+            "nominee_id":  entry.nominee_id,
+            "jury_id":     jury_id,
+            "jury_role":   user["role"],
+            "rank":        entry.rank,
+            "points":      entry.points,
+            "created_at":  now,
+        })
+
+    if docs:
+        await db.jury_rankings.insert_many(docs)
+
+    # Apply new points to nominee totals
+    for entry in req.rankings:
+        await db.nominees.update_one(
+            {"_id": ObjectId(entry.nominee_id)},
+            {
+                "$inc": {"total_score": entry.points},
+                "$addToSet": {"voted_by": jury_id},
+            }
+        )
+
+    await log_action(db, user, "submit_ranking", {
+        "award_id": req.award_id,
+        "num_nominees": len(req.rankings),
+    })
+
+    return {"message": "Ranking submitted", "rankings": len(req.rankings)}
+
+
+@router.get("/ranking/{award_id}")
+async def get_my_ranking(award_id: str, user=Depends(get_current_user)):
+    """
+    Get the current jury member's submitted ranking for an award.
+    Returns null if not yet submitted.
+    """
+    if user["role"] not in ["jury", "head_jury"]:
+        raise HTTPException(status_code=403)
+
+    db = get_database()
+    rankings = await db.jury_rankings.find(
+        {"award_id": award_id, "jury_id": user["sub"]}
+    ).sort("rank", 1).to_list(100)
+
+    if not rankings:
+        return None
+
+    return {
+        "award_id":  award_id,
+        "jury_id":   user["sub"],
+        "rankings":  [
+            {
+                "nominee_id": r["nominee_id"],
+                "rank":       r["rank"],
+                "points":     r["points"],
+            }
+            for r in rankings
+        ],
+        "submitted_at": rankings[0].get("created_at", "").isoformat()
+            if rankings[0].get("created_at") else "",
+    }

@@ -42,10 +42,10 @@ export default function Sidebar({ navItems, role, username, onLogout }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ path, icon: Icon, label, badge }) => {
-          const active = location.pathname === path
+        {navItems.map(({ path, basePath, icon: Icon, label, badge }) => {
+          const active = location.pathname === (basePath || path)
           return (
-            <Link key={path} to={path}
+            <Link key={basePath || path} to={path}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium group"
               style={active ? { backgroundColor: meta.light, color: meta.accent } : { color: '#6b7280' }}>
               <Icon className="w-4 h-4 flex-shrink-0" style={active ? { color: meta.accent } : {}} />

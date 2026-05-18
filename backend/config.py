@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     OPENAI_API_KEY: Optional[str] = ""
+    GROQ_KEY: Optional[str] = ""
 
     class Config:
         env_file = ".env"
