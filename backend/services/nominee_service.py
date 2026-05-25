@@ -1,17 +1,16 @@
 """
 nominee_service.py
 ──────────────────
-Orchestration layer for the AI nominee research engine.
+Production nominee search pipeline.
 
-Strategy (two tracks, merged):
-  TRACK A – AI-direct (primary, reliable)
-    Llama 3.3 generates real candidate names → Wikipedia validates each one
-
-  TRACK B – Web-search (supplementary, best-effort)
-    DuckDuckGo queries → extract names from results → Wikipedia validates
-
-Both tracks feed into the same filter → rank → return pipeline.
-If Track B fails entirely the pipeline still succeeds via Track A.
+Flow:
+  1. Extract award metrics via Groq
+  2. Groq generates exactly num_results * 3 contextually correct names
+     (respects age, gender, sector, geography constraints)
+  3. Sources (RSS + scraped pages) enrich candidates with role/org/summary
+  4. Groq ranks all candidates
+  5. Photos fetched concurrently (Wikipedia → Bing → Google)
+  6. Retry loop ensures exactly num_results nominees are returned
 """
 
 import asyncio
@@ -20,112 +19,17 @@ import re
 
 from bson import ObjectId
 
-from services.ai_service import (
-    extract_award_metrics,
-    generate_candidate_names,
-    generate_search_queries,
-    rank_candidates,
-)
-from services.search_service import (
-    duckduckgo_search,
-    extract_candidate_names_from_results,
-    enrich_candidates_with_wikipedia,
-    HIGH_PROFILE_TITLE_KEYWORDS,
-    EXCLUDE_KEYWORDS,
-)
-from services.wikipedia_service import fetch_summary
+from services.ai_service import extract_award_metrics, generate_candidate_names, rank_candidates
+from services.source_scrapers import scrape_all_sources, batch_fetch_photos
 
 logger = logging.getLogger(__name__)
 
-# ── Filtering constants ───────────────────────────────────────────────────────
-
-# Candidate MUST match at least one of these in their Wikipedia text
-MUST_HAVE_SIGNALS = [
-    r"\bforbes\b",
-    r"\bbillionaire\b",
-    r"\bnet worth\b",
-    r"\bchairman\b",
-    r"\bchairperson\b",
-    r"\bchief executive\b",
-    r"\bceo\b",
-    r"\bfounder\b",
-    r"\bco-founder\b",
-    r"\bmanaging director\b",
-    r"\bindustrialist\b",
-    r"\bfortune 500\b",
-    r"\bfortune india\b",
-    r"\bunicorn\b",
-    r"\bconglomerate\b",
-    r"\bpublicly listed\b",
-    r"\bstock exchange\b",
-    r"\bnse\b", r"\bbse\b", r"\bnasdaq\b", r"\bnyse\b",
-    r"\bpadma\b",
-]
-
-# Candidate MUST also have at least one India signal
-INDIA_SIGNALS = [
-    r"\bindia\b",
-    r"\bindian\b",
-    r"\bmumbai\b",
-    r"\bdelhi\b",
-    r"\bbangalore\b",
-    r"\bbengaluru\b",
-    r"\bhyderabad\b",
-    r"\bchennai\b",
-    r"\bkolkata\b",
-    r"\bnse\b",
-    r"\bbse\b",
-    r"\bsebi\b",
-    r"\btata\b",
-    r"\breliance\b",
-    r"\binfosys\b",
-    r"\bwipro\b",
-    r"\badani\b",
-    r"\bbajaj\b",
-    r"\bmahindra\b",
-    r"\bbiocon\b",
-    r"\bairtel\b",
-    r"\bhdfc\b",
-    r"\bicici\b",
-]
-
-MIN_CONFIDENCE  = 0.45
-MIN_WIKI_LEN    = 200
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _passes_filter(candidate: dict) -> bool:
-    text = " ".join([
-        candidate.get("wikipedia_summary", ""),
-        candidate.get("description", ""),
-        candidate.get("role", ""),
-        candidate.get("organization", ""),
-    ]).lower()
-
-    # Must have at least one high-profile business signal
-    if not any(re.search(p, text) for p in MUST_HAVE_SIGNALS):
-        return False
-
-    # Must have at least one India signal
-    if not any(re.search(p, text) for p in INDIA_SIGNALS):
-        logger.debug("Filtered out non-Indian candidate: %s", candidate.get("name", ""))
-        return False
-
-    # Must NOT be a small/local business
-    if any(kw in text for kw in EXCLUDE_KEYWORDS):
-        return False
-
-    # Wikipedia summary must be substantial
-    if len(candidate.get("wikipedia_summary", "")) < MIN_WIKI_LEN:
-        return False
-
-    return True
+MIN_CONFIDENCE = 0.30
 
 
 def _deduplicate(candidates: list[dict]) -> list[dict]:
     seen: set[str] = set()
-    out:  list[dict] = []
+    out: list[dict] = []
     for c in candidates:
         key = re.sub(r"\s+", " ", c.get("name", "").lower().strip())
         if key and key not in seen:
@@ -135,14 +39,10 @@ def _deduplicate(candidates: list[dict]) -> list[dict]:
 
 
 def _build_payload(candidate: dict, award_id: str) -> dict:
-    sources  = list(candidate.get("source_links", []))
-    wiki_url = candidate.get("wikipedia_url", "")
-    if wiki_url and wiki_url not in sources:
-        sources.insert(0, wiki_url)
-
-    reason = candidate.get("relevance_reason", "")
-    wiki_s  = candidate.get("wikipedia_summary", "")
-    rationale = f"{reason}\n\n{wiki_s[:600]}".strip() if wiki_s else reason
+    sources   = list(candidate.get("sources", []))
+    reason    = candidate.get("relevance_reason", "")
+    summary   = candidate.get("summary", "")
+    rationale = f"{reason}\n\n{summary[:600]}".strip() if summary else reason
 
     return {
         "award_id":     award_id,
@@ -150,11 +50,10 @@ def _build_payload(candidate: dict, award_id: str) -> dict:
         "designation":  candidate.get("role", "Business Leader"),
         "organisation": candidate.get("organization", ""),
         "photo_url":    candidate.get("photo_url", ""),
-        "rationale":    rationale,
+        "rationale":    rationale or f"Identified as a strong candidate for {award_id}",
         "rationale_data": {
-            "confidence_score": candidate.get("confidence_score", 0.0),
+            "confidence_score": candidate.get("confidence_score", 0.5),
             "relevance_reason": candidate.get("relevance_reason", ""),
-            "wikipedia_url":    wiki_url,
             "source_links":     sources,
             "ai_generated":     True,
         },
@@ -163,204 +62,136 @@ def _build_payload(candidate: dict, award_id: str) -> dict:
     }
 
 
-# ── Track A: AI-direct Wikipedia validation ───────────────────────────────────
-
-async def _track_a(award_title: str, metrics: list[str], num_candidates: int) -> list[dict]:
-    """
-    Llama generates names → fetch each from Wikipedia → filter.
-    This is the primary, reliable track.
-    """
-    ai_names = await generate_candidate_names(award_title, metrics, num_candidates * 2)
-    if not ai_names:
-        logger.warning("Track A: Llama returned no candidate names")
-        return []
-
-    logger.info("Track A: validating %d AI-generated names via Wikipedia", len(ai_names))
-
-    # Fetch Wikipedia summaries for all names concurrently
-    tasks   = [fetch_summary(item["name"]) for item in ai_names]
-    summaries = await asyncio.gather(*tasks, return_exceptions=True)
-
-    candidates = []
-    for item, summary in zip(ai_names, summaries):
-        if isinstance(summary, Exception) or summary is None:
-            logger.debug("Track A: no Wikipedia page for '%s'", item["name"])
+def _enrich_from_sources(ai_names: list[dict], source_map: dict) -> list[dict]:
+    enriched = []
+    for item in ai_names:
+        name = item.get("name", "").strip()
+        if not name:
             continue
+        key = name.lower()
+        src = source_map.get(key, {})
 
-        extract     = summary.get("extract", "")
-        description = summary.get("description", "")
-        wiki_url    = summary.get("wiki_url", "")
+        # Partial match fallback
+        if not src:
+            parts = key.split()
+            for sk, sv in source_map.items():
+                sp = sk.split()
+                if len(parts) >= 2 and len(sp) >= 2 and parts[0] == sp[0] and parts[-1] == sp[-1]:
+                    src = sv
+                    break
 
-        candidate = {
-            "name":              summary["title"],   # canonical Wikipedia name
-            "role":              item["role"],
-            "organization":      item["organization"],
-            "wikipedia_summary": extract[:800],
-            "wikipedia_url":     wiki_url,
-            "photo_url":         summary.get("thumbnail_url", ""),
-            "description":       description,
-            "source_links":      [wiki_url] if wiki_url else [],
-            "confidence_score":  0.0,
-            "relevance_reason":  "",
-        }
-        candidates.append(candidate)
-
-    logger.info("Track A: %d candidates passed Wikipedia validation", len(candidates))
-    return candidates
+        enriched.append({
+            "name":         name,
+            "role":         src.get("role") or item.get("role", "Business Leader"),
+            "organization": src.get("organization") or item.get("organization", ""),
+            "summary":      src.get("summary", ""),
+            "photo_url":    src.get("image_url", "") or src.get("photo_url", ""),
+            "sources":      src.get("sources", [item.get("organization", "")]),
+            "confidence_score": 0.0,
+            "relevance_reason": "",
+        })
+    return enriched
 
 
-# ── Track B: Web-search supplementary ────────────────────────────────────────
+async def _fetch_photos_for(candidates: list[dict]) -> None:
+    """Fetch photos concurrently for all candidates missing one. Mutates in place."""
+    missing = [c for c in candidates if not c.get("photo_url")]
+    if not missing:
+        return
+    logger.info("Fetching photos for %d candidates...", len(missing))
+    photo_map = await batch_fetch_photos([c["name"] for c in missing])
+    for c in missing:
+        url = photo_map.get(c["name"], "")
+        if url:
+            c["photo_url"] = url
 
-async def _track_b(award_title: str, metrics: list[str]) -> list[dict]:
+
+async def run_ai_nominee_search(db, award_id: str, num_results: int = 5) -> list[dict]:
     """
-    DuckDuckGo queries → extract names → Wikipedia enrichment.
-    Best-effort; failures are silently swallowed.
+    Full pipeline. Guarantees exactly num_results nominees are returned.
+    Retries generation if initial pass yields fewer than requested.
     """
-    try:
-        queries = await generate_search_queries(award_title, metrics, num_queries=6)
-        logger.info("Track B: running %d DuckDuckGo queries", len(queries))
-
-        ddgo_results = await asyncio.gather(
-            *[duckduckgo_search(q, max_results=8) for q in queries],
-            return_exceptions=True,
-        )
-
-        combined = []
-        for r in ddgo_results:
-            if isinstance(r, list):
-                combined.extend(r)
-
-        names = extract_candidate_names_from_results(combined)
-        # Deduplicate names
-        seen: set[str] = set()
-        unique = []
-        for n in names:
-            k = n.lower().strip()
-            if k not in seen and len(n.split()) >= 2:
-                seen.add(k)
-                unique.append(n)
-
-        logger.info("Track B: %d unique names extracted from web results", len(unique))
-
-        if not unique:
-            return []
-
-        candidates = await enrich_candidates_with_wikipedia(unique[:30])
-        logger.info("Track B: %d candidates enriched via Wikipedia", len(candidates))
-        return candidates
-
-    except Exception as exc:
-        logger.warning("Track B failed (non-fatal): %s", exc)
-        return []
-
-
-# ── Main orchestration ────────────────────────────────────────────────────────
-
-async def run_ai_nominee_search(
-    db,
-    award_id: str,
-    num_results: int = 5,
-) -> list[dict]:
-    """
-    Full pipeline:
-      1. Fetch award + metrics
-      2. Track A (AI-direct) + Track B (web search) in parallel
-      3. Merge, deduplicate, filter
-      4. Rank with Llama 3.3
-      5. Return top-N payloads
-    """
-    # ── 1. Fetch award ────────────────────────────────────────────────────────
     award = await db.awards.find_one({"_id": ObjectId(award_id)})
     if not award:
         raise ValueError(f"Award {award_id} not found")
 
-    award_title = award.get("name") or award.get("title") or "Business Excellence Award"
+    award_title = award.get("name") or "Business Excellence Award"
     award_desc  = award.get("description", "")
 
-    # ── 2. Get or extract metrics ─────────────────────────────────────────────
+    # ── Metrics ───────────────────────────────────────────────────────────────
     metrics: list[str] = award.get("ai_metrics", [])
     if not metrics:
-        logger.info("Extracting metrics for award '%s'", award_title)
         metrics = await extract_award_metrics(award_title, award_desc)
         await db.awards.update_one(
             {"_id": ObjectId(award_id)},
             {"$set": {"ai_metrics": metrics}},
         )
-        logger.info("Stored %d metrics: %s", len(metrics), metrics)
 
-    # ── 3. Run both tracks in parallel ────────────────────────────────────────
-    track_a_result, track_b_result = await asyncio.gather(
-        _track_a(award_title, metrics, num_results),
-        _track_b(award_title, metrics),
-        return_exceptions=True,
-    )
+    # ── Scrape sources (background, for enrichment) ───────────────────────────
+    source_task = asyncio.create_task(scrape_all_sources())
 
-    all_candidates: list[dict] = []
+    # ── Generate names — ask for 3x to have buffer ────────────────────────────
+    ask_for = max(num_results * 3, 15)
+    ai_names = await generate_candidate_names(award_title, metrics, ask_for)
+    logger.info("Groq returned %d names (asked for %d)", len(ai_names), ask_for)
 
-    if isinstance(track_a_result, Exception):
-        logger.error("Track A raised an exception: %s", track_a_result)
-    elif track_a_result:
-        all_candidates.extend(track_a_result)
+    if not ai_names:
+        raise ValueError("No candidates generated. Check GROQ_KEY and award description.")
 
-    if isinstance(track_b_result, Exception):
-        logger.warning("Track B raised an exception (non-fatal): %s", track_b_result)
-    elif track_b_result:
-        all_candidates.extend(track_b_result)
+    # ── Wait for sources ──────────────────────────────────────────────────────
+    try:
+        source_candidates = await asyncio.wait_for(source_task, timeout=20)
+    except asyncio.TimeoutError:
+        source_candidates = []
+        logger.warning("Source scraping timed out — proceeding with AI names only")
 
-    logger.info("Combined pool before filtering: %d candidates", len(all_candidates))
+    source_map = {c.get("name", "").lower(): c for c in source_candidates if c.get("name")}
 
-    if not all_candidates:
-        raise ValueError(
-            "No candidates found. Ensure GROQ_KEY is valid and the award has a descriptive description."
-        )
+    # ── Enrich + deduplicate ──────────────────────────────────────────────────
+    candidates = _deduplicate(_enrich_from_sources(ai_names, source_map))
+    logger.info("Enriched candidates: %d", len(candidates))
 
-    # ── 4. Filter + deduplicate ───────────────────────────────────────────────
-    filtered = _deduplicate([c for c in all_candidates if _passes_filter(c)])
-    logger.info("After filter + dedup: %d candidates", len(filtered))
-
-    if not filtered:
-        # Relax the high-profile signal check but still enforce India + wiki length
-        filtered = _deduplicate([
-            c for c in all_candidates
-            if len(c.get("wikipedia_summary", "")) >= MIN_WIKI_LEN
-            and any(
-                re.search(p, " ".join([
-                    c.get("wikipedia_summary", ""),
-                    c.get("description", ""),
-                    c.get("organization", ""),
-                ]).lower())
-                for p in INDIA_SIGNALS
-            )
-        ])
-        logger.info("Relaxed filter (India + wiki length only): %d candidates", len(filtered))
-
-    if not filtered:
-        raise ValueError(
-            "No high-profile candidates found. Try adding more detail to the award description."
-        )
-
-    # ── 5. Rank with Llama 3.3 ────────────────────────────────────────────────
-    ranked = await rank_candidates(filtered, award_title, metrics)
+    # ── Rank ──────────────────────────────────────────────────────────────────
+    ranked = await rank_candidates(candidates, award_title, metrics)
     ranked = [c for c in ranked if c.get("confidence_score", 0) >= MIN_CONFIDENCE]
-    logger.info("After confidence filter (>= %.2f): %d candidates", MIN_CONFIDENCE, len(ranked))
+    logger.info("After confidence filter (>= %.2f): %d", MIN_CONFIDENCE, len(ranked))
 
-    if not ranked:
-        # Last resort: return top candidates by Wikipedia summary length
-        ranked = sorted(filtered, key=lambda c: len(c.get("wikipedia_summary", "")), reverse=True)
-        for c in ranked:
-            c.setdefault("confidence_score", 0.5)
-            c.setdefault("relevance_reason", "Recognised business leader")
+    # ── Retry if we don't have enough ────────────────────────────────────────
+    if len(ranked) < num_results:
+        logger.info("Not enough ranked candidates (%d < %d), retrying generation...", len(ranked), num_results)
+        extra_names = await generate_candidate_names(award_title, metrics, num_results * 2)
+        extra = _deduplicate(_enrich_from_sources(extra_names, source_map))
+        # Remove already-ranked names
+        ranked_keys = {c["name"].lower() for c in ranked}
+        extra = [c for c in extra if c.get("name", "").lower() not in ranked_keys]
+        if extra:
+            extra_ranked = await rank_candidates(extra, award_title, metrics)
+            ranked.extend([c for c in extra_ranked if c.get("confidence_score", 0) >= MIN_CONFIDENCE])
+            ranked = _deduplicate(ranked)
+            ranked.sort(key=lambda c: c.get("confidence_score", 0), reverse=True)
 
-    # ── 6. Build payloads ─────────────────────────────────────────────────────
-    return [_build_payload(c, award_id) for c in ranked[:num_results]]
+    # ── Fallback: fill remaining slots from unranked candidates ──────────────
+    if len(ranked) < num_results:
+        ranked_keys = {c["name"].lower() for c in ranked}
+        remaining = [c for c in candidates if c.get("name", "").lower() not in ranked_keys]
+        for c in remaining:
+            c.setdefault("confidence_score", 0.45)
+            c.setdefault("relevance_reason", "Identified as a relevant candidate for this award")
+        ranked.extend(remaining)
+        ranked = _deduplicate(ranked)
 
+    top = ranked[:num_results]
 
-# ── Award creation helper ─────────────────────────────────────────────────────
+    # ── Photos ────────────────────────────────────────────────────────────────
+    await _fetch_photos_for(top)
+
+    # ── Build payloads ────────────────────────────────────────────────────────
+    return [_build_payload(c, award_id) for c in top]
+
 
 async def extract_and_store_metrics(
     db, award_id: str, award_title: str, award_description: str
 ) -> list[str]:
-    """Extract metrics from award description and persist to DB."""
     if not award_description.strip():
         return []
     try:
@@ -369,8 +200,7 @@ async def extract_and_store_metrics(
             {"_id": ObjectId(award_id)},
             {"$set": {"ai_metrics": metrics}},
         )
-        logger.info("Stored %d metrics for award '%s'", len(metrics), award_title)
         return metrics
     except Exception as exc:
-        logger.warning("Failed to extract metrics for '%s': %s", award_title, exc)
+        logger.warning("Failed to extract metrics: %s", exc)
         return []

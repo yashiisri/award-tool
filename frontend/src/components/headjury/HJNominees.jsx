@@ -258,33 +258,50 @@ export default function HJNominees() {
       {/* Profile modal */}
       {selectedNominee && <NomineeProfileCard nominee={selectedNominee} onClose={() => setSelectedNominee(null)} />}
 
-      {/* Add modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-lg font-black text-[#1a1a2e]">Add Nominee</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,22,40,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }}>
+          <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.15)', fontFamily: "'Inter', system-ui, sans-serif" }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px 28px', borderBottom: '1px solid #F0F4F8' }}>
+              <div>
+                <h2 style={{ color: '#0A1628', fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em' }}>Add Nominee</h2>
+                <p style={{ color: '#9BA8B5', fontSize: 13, marginTop: 2 }}>Add a nominee to this award</p>
+              </div>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9BA8B5', padding: 4 }}
+                onMouseEnter={e => e.currentTarget.style.color = '#0A1628'}
+                onMouseLeave={e => e.currentTarget.style.color = '#9BA8B5'}>
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <form onSubmit={handleAdd} className="p-6 space-y-4">
-              {[['Full Name','name','e.g. Roshni Nadar Malhotra'],['Designation','designation','e.g. Chairperson'],['Organisation','organisation','e.g. HCLTech'],['Photo URL (optional)','photo_url','https://...']].map(([label, key, ph]) => (
+            <form onSubmit={handleAdd} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[['Full Name', 'name', 'e.g. Roshni Nadar Malhotra', true], ['Designation', 'designation', 'e.g. Chairperson', true], ['Organisation', 'organisation', 'e.g. HCLTech', true], ['Photo URL (optional)', 'photo_url', 'https://...', false]].map(([label, key, ph, req]) => (
                 <div key={key}>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{label}</label>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9BA8B5', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</label>
                   <input type="text" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7F3F98]/30 text-sm"
-                    placeholder={ph} required={key !== 'photo_url'} />
+                    style={{ width: '100%', padding: '11px 14px', background: '#F7F9FC', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, color: '#0A1628', outline: 'none', boxSizing: 'border-box' }}
+                    placeholder={ph} required={req}
+                    onFocus={e => e.target.style.borderColor = '#00338D'}
+                    onBlur={e => e.target.style.borderColor = '#E8ECF0'} />
                 </div>
               ))}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Rationale</label>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9BA8B5', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Rationale *</label>
                 <textarea value={form.rationale} onChange={e => setForm({ ...form, rationale: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7F3F98]/30 resize-none text-sm" rows="4" required />
+                  style={{ width: '100%', padding: '11px 14px', background: '#F7F9FC', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, color: '#0A1628', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+                  rows={4} placeholder="Why is this person being nominated?" required
+                  onFocus={e => e.target.style.borderColor = '#00338D'}
+                  onBlur={e => e.target.style.borderColor = '#E8ECF0'} />
               </div>
-              <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={loading} className="flex-1 py-3 bg-[#7F3F98] text-white rounded-xl font-semibold text-sm hover:bg-[#6a3480] disabled:opacity-50 transition-colors">
+              <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+                <button type="submit" disabled={loading}
+                  style={{ flex: 1, padding: '12px', background: loading ? '#9BA8B5' : '#00338D', color: 'white', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}
+                  onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#002a73' }}
+                  onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#00338D' }}>
                   {loading ? 'Adding...' : 'Add Nominee'}
                 </button>
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-5 py-3 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors">Cancel</button>
+                <button type="button" onClick={() => setShowAddModal(false)}
+                  style={{ padding: '12px 18px', background: '#F7F9FC', color: '#6B7A8D', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
               </div>
             </form>
           </div>

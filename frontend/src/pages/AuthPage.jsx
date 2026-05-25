@@ -91,8 +91,8 @@ export default function AuthPage({ onLogin }) {
             <Trophy className="w-5 h-5 text-white" />
           </div>
           <div>
-            <span className="font-black text-white text-base">AIMA Awards</span>
-            <div className="text-white/50 text-xs">All India Management Association</div>
+            <span className="font-black text-white text-base">NobleCrest.AI</span>
+            <div className="text-white/50 text-xs">Powered by KPMG</div>
           </div>
         </div>
 

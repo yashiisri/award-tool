@@ -217,10 +217,16 @@ async def ai_search_nominees(req: AISearchRequest, user=Depends(get_current_user
         raise HTTPException(status_code=403)
 
     if not settings.GROQ_KEY:
-        raise HTTPException(
-            status_code=503,
-            detail="GROQ_KEY is not configured. Please add it to your .env file."
-        )
+        # Re-read from env in case settings was loaded before .env was available
+        import os
+        groq_key = os.environ.get("GROQ_KEY") or settings.GROQ_KEY
+        if not groq_key:
+            raise HTTPException(
+                status_code=503,
+                detail="GROQ_KEY is not configured. Please add it to your .env file."
+            )
+        # Patch settings so the service picks it up
+        settings.GROQ_KEY = groq_key
 
     db = get_database()
     award = await db.awards.find_one({"_id": ObjectId(req.award_id)})

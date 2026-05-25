@@ -96,50 +96,36 @@ async def generate_candidate_names(
     num_candidates: int = 20,
 ) -> list[dict]:
     """
-    PRIMARY candidate source.
-
-    Ask Llama 3.3 to produce a list of real, verifiable high-profile INDIAN
-    business leaders who are strong fits for this award. Each entry includes
-    the person's name, role, and organisation so Wikipedia can validate them.
-
-    Returns list of dicts: [{name, role, organization}, ...]
+    Generate contextually correct candidate names.
+    Respects ALL constraints in the award title/metrics:
+    age limits, gender, sector, geography, etc.
     """
     client = _get_client()
     metrics_str = ", ".join(metrics)
 
-    prompt = f"""You are a senior research analyst compiling nominees for the award:
+    prompt = f"""You are a senior research analyst finding nominees for this award:
 "{award_title}"
 
-Evaluation metrics: {metrics_str}
+Evaluation metrics / criteria: {metrics_str}
 
-List {num_candidates} REAL, verifiable, high-profile INDIAN business leaders who are \
-strong candidates for this award.
+CRITICAL: Read the award title and criteria carefully for ANY constraints:
+- Age constraints (e.g. "under 30", "below 35", "young") → ONLY list people who meet that age
+- Gender constraints (e.g. "women", "female") → ONLY list women
+- Sector constraints (e.g. "tech", "healthcare", "fintech") → ONLY list people from that sector
+- Geography (default: India unless stated otherwise)
 
-MANDATORY — every person MUST:
-- Be Indian (born in India or leading an Indian company / Indian-origin globally recognised)
-- Have a Wikipedia page (they must be nationally or internationally recognised)
-- Be a billionaire, or CEO/Chairperson/Founder/MD of a major Indian publicly listed company
-- Lead companies with significant revenue, market cap, or global presence
-- Be an industrialist, conglomerate head, or unicorn founder based in India
+List {num_candidates} REAL, verifiable Indian people who STRICTLY match ALL constraints above.
 
-Good examples of the calibre required:
-Mukesh Ambani, Ratan Tata, N. Chandrasekaran, Kiran Mazumdar-Shaw, Sajjan Jindal,
-Gautam Adani, Azim Premji, Uday Kotak, Deepinder Goyal, Falguni Nayar,
-Kumar Mangalam Birla, Anand Mahindra, Sunil Bharti Mittal, Shiv Nadar
+For "under 30" or "young entrepreneur" awards, examples of the RIGHT calibre:
+Kaivalya Vohra (Zepto), Aadit Palicha (Zepto), Ritesh Agarwal (OYO),
+Divya Gokulnath (BYJU'S), Rehan Yar Khan (Orios), Nikhil Kamath (Zerodha)
 
-STRICT EXCLUSIONS — do NOT include:
-- Non-Indian business leaders
-- Small or local Indian business owners
-- Unknown entrepreneurs without public recognition
-- Anyone without a verifiable Wikipedia page
-- Fictional or uncertain names
+For general business leadership awards, examples:
+Mukesh Ambani, Ratan Tata, Kiran Mazumdar-Shaw, Deepinder Goyal, Falguni Nayar
 
-For each person return their EXACT real name as it appears on Wikipedia.
-
-Return ONLY a JSON array. No explanation, no markdown fences.
-Format:
+Return ONLY a JSON array. No explanation.
 [
-  {{"name": "Full Name", "role": "CEO / Chairman / Founder / etc.", "organization": "Company Name"}},
+  {{"name": "Full Name", "role": "Founder/CEO/etc.", "organization": "Company Name"}},
   ...
 ]"""
 
@@ -162,7 +148,7 @@ Format:
                 org  = str(item.get("organization", "")).strip()
                 if name and len(name.split()) >= 2:
                     cleaned.append({"name": name, "role": role, "organization": org})
-            logger.info("generate_candidate_names → %d names from Llama", len(cleaned))
+            logger.info("generate_candidate_names → %d names", len(cleaned))
             return cleaned
     except (ValueError, TypeError) as exc:
         logger.warning("generate_candidate_names parse failed: %s | raw=%s", exc, raw[:300])

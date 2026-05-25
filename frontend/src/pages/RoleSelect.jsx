@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Shield, Crown, Users, ChevronRight, Trophy, ArrowLeft } from 'lucide-react'
+import { Shield, Crown, Users, ChevronRight, ArrowLeft } from 'lucide-react'
 
 const ROLES = [
   {
@@ -8,8 +8,6 @@ const ROLES = [
     title: 'Admin',
     subtitle: 'Platform Administrator',
     desc: 'Full control over categories, nominees, vote periods, and audit logs.',
-    accent: '#00338D',
-    light: '#EEF2FA',
   },
   {
     role: 'head_jury',
@@ -17,8 +15,6 @@ const ROLES = [
     title: 'Head Jury',
     subtitle: 'Senior Evaluator',
     desc: 'Oversee nominations, review jury feedback, and manage award decisions.',
-    accent: '#7F3F98',
-    light: '#F5EEF8',
   },
   {
     role: 'jury',
@@ -26,8 +22,6 @@ const ROLES = [
     title: 'Jury',
     subtitle: 'Evaluator',
     desc: 'Validate nominees, score candidates, and submit structured feedback.',
-    accent: '#0091DA',
-    light: '#EAF5FC',
   },
 ]
 
@@ -35,57 +29,83 @@ export default function RoleSelect() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7] flex flex-col">
-      {/* Nav */}
-      <nav className="bg-white border-b border-gray-100 shadow-sm px-6 py-4 flex items-center justify-between">
-        <button onClick={() => navigate('/')} className="flex items-center gap-2 text-gray-500 hover:text-[#00338D] transition-colors text-sm font-medium">
-          <ArrowLeft className="w-4 h-4" />
-          Back
+    <div style={{
+      minHeight: '100vh',
+      background: '#F7F9FC',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
+    }}>
+
+      {/* Back */}
+      <div style={{ position: 'fixed', top: 24, left: 32 }}>
+        <button
+          onClick={() => navigate('/')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#9BA8B5', fontSize: 13, fontWeight: 500, cursor: 'pointer', padding: 0 }}
+          onMouseEnter={e => e.currentTarget.style.color = '#00338D'}
+          onMouseLeave={e => e.currentTarget.style.color = '#9BA8B5'}
+        >
+          <ArrowLeft size={15} /> Back
         </button>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#1B3A6B] rounded-lg flex items-center justify-center">
-            <Trophy className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-black text-[#1B3A6B] text-sm">AIMA Awards</span>
+      </div>
+
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: 52 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 20, padding: '5px 14px', background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 20 }}>
+          <span style={{ color: '#00338D', fontSize: 12, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Access Portal</span>
         </div>
-        <div className="w-16" />
-      </nav>
+        <h1 style={{ fontSize: 52, fontWeight: 900, color: '#0A1628', letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: 12 }}>
+          Select your role
+        </h1>
+        <p style={{ color: '#9BA8B5', fontSize: 16, fontWeight: 400, lineHeight: 1.6 }}>
+          Choose how you will be accessing the platform today.
+        </p>
+      </div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
-        <div className="text-center mb-12">
-          <span className="text-xs font-bold text-[#0091DA] uppercase tracking-widest">Access Portal</span>
-          <h1 className="text-4xl md:text-5xl font-black text-[#00338D] mt-2 mb-3">Select Your Role</h1>
-          <p className="text-gray-500 text-base">Choose how you'll be accessing the platform today.</p>
-        </div>
+      {/* Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18, width: '100%', maxWidth: 900 }}>
+        {ROLES.map(({ role, icon: Icon, title, subtitle, desc }) => (
+          <div
+            key={role}
+            onClick={() => navigate(`/login/${role}`)}
+            style={{
+              background: 'white',
+              border: '1px solid #E8ECF0',
+              borderRadius: 16,
+              padding: '36px 32px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = '#00338D'
+              e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,51,141,0.1)'
+              e.currentTarget.style.transform = 'translateY(-3px)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#E8ECF0'
+              e.currentTarget.style.boxShadow = 'none'
+              e.currentTarget.style.transform = 'translateY(0)'
+            }}
+          >
+            <div style={{ width: 52, height: 52, borderRadius: 12, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+              <Icon size={24} color="#00338D" strokeWidth={1.7} />
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
-          {ROLES.map(({ role, icon: Icon, title, subtitle, desc, accent, light }) => (
-            <div
-              key={role}
-              onClick={() => navigate(`/login/${role}`)}
-              className="group cursor-pointer bg-white border-2 border-gray-100 rounded-2xl p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-              style={{ '--accent': accent }}
-            >
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 transition-all group-hover:scale-110" style={{ backgroundColor: light }}>
-                <Icon className="w-8 h-8 transition-colors" style={{ color: accent }} />
-              </div>
+            <div style={{ color: '#0091DA', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>{subtitle}</div>
+            <h3 style={{ color: '#0A1628', fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 12 }}>{title}</h3>
+            <p style={{ color: '#6B7A8D', fontSize: 14, lineHeight: 1.75, marginBottom: 28 }}>{desc}</p>
 
-              <div className="mb-1">
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: accent }}>{subtitle}</span>
-              </div>
-              <h3 className="text-2xl font-black text-[#1a1a2e] mb-3">{title}</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-8">{desc}</p>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-400">Sign in / Register</span>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center group-hover:translate-x-1 transition-transform" style={{ backgroundColor: light }}>
-                  <ChevronRight className="w-4 h-4" style={{ color: accent }} />
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ color: '#B0BAC6', fontSize: 13, fontWeight: 500 }}>Sign in / Register</span>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ChevronRight size={15} color="#00338D" />
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   )

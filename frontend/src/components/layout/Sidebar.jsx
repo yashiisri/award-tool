@@ -1,10 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LogOut, Trophy } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+import kpmgLogo from '../../kpmg-logo.png'
 
 const ROLE_META = {
-  admin:     { label: 'Administrator', accent: '#00338D', light: '#EEF2FA' },
-  head_jury: { label: 'Head Jury',     accent: '#7F3F98', light: '#F5EEF8' },
-  jury:      { label: 'Jury Member',   accent: '#0091DA', light: '#EAF5FC' },
+  admin:     { label: 'Administrator', accent: '#00338D', light: '#EEF2FF' },
+  head_jury: { label: 'Head Jury',     accent: '#00338D', light: '#EEF2FF' },
+  jury:      { label: 'Jury Member',   accent: '#00338D', light: '#EEF2FF' },
 }
 
 export default function Sidebar({ navItems, role, username, onLogout }) {
@@ -12,28 +13,41 @@ export default function Sidebar({ navItems, role, username, onLogout }) {
   const meta = ROLE_META[role] || ROLE_META.jury
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0 shadow-sm">
-      {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-100">
-        <div className="flex items-center gap-2.5 mb-5">
-          <div className="w-8 h-8 bg-[#00338D] rounded-lg flex items-center justify-center">
-            <Trophy className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <div className="font-black text-[#00338D] text-sm leading-tight">AIMA</div>
-            <div className="text-xs text-gray-400">Powered by KPMG</div>
-          </div>
-        </div>
+    <aside style={{
+      width: 240,
+      flexShrink: 0,
+      background: 'white',
+      borderRight: '1px solid #E8ECF0',
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      position: 'sticky',
+      top: 0,
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    }}>
+      {/* Logo area */}
+      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #F0F4F8' }}>
+        <img src={kpmgLogo} alt="KPMG" style={{ height: 36, width: 'auto', objectFit: 'contain', marginBottom: 16 }} />
 
-        {/* Welcome badge */}
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ backgroundColor: meta.light }}>
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black text-white flex-shrink-0"
-            style={{ backgroundColor: meta.accent }}>
+        {/* User badge */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 12px',
+          background: '#F7F9FC',
+          border: '1px solid #E8ECF0',
+          borderRadius: 10,
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: '#00338D',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontSize: 13, fontWeight: 800, flexShrink: 0,
+          }}>
             {(username || meta.label)?.[0]?.toUpperCase()}
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-gray-400 leading-none">Welcome</div>
-            <div className="text-sm font-bold leading-tight mt-0.5 truncate" style={{ color: meta.accent }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: '#9BA8B5', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Welcome</div>
+            <div style={{ color: '#0A1628', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {username || meta.label}
             </div>
           </div>
@@ -41,27 +55,53 @@ export default function Sidebar({ navItems, role, username, onLogout }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {navItems.map(({ path, basePath, icon: Icon, label, badge }) => {
           const active = location.pathname === (basePath || path)
           return (
-            <Link key={basePath || path} to={path}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium group"
-              style={active ? { backgroundColor: meta.light, color: meta.accent } : { color: '#6b7280' }}>
-              <Icon className="w-4 h-4 flex-shrink-0" style={active ? { color: meta.accent } : {}} />
-              <span className="flex-1">{label}</span>
-              {badge && <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">{badge}</span>}
-              {active && <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: meta.accent }} />}
+            <Link
+              key={basePath || path}
+              to={path}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '9px 12px',
+                borderRadius: 8,
+                textDecoration: 'none',
+                fontSize: 13,
+                fontWeight: active ? 600 : 500,
+                color: active ? '#00338D' : '#6B7A8D',
+                background: active ? '#EEF2FF' : 'transparent',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#F7F9FC' }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+            >
+              <Icon size={15} style={{ flexShrink: 0, color: active ? '#00338D' : '#9BA8B5' }} />
+              <span style={{ flex: 1 }}>{label}</span>
+              {badge && (
+                <span style={{ padding: '1px 7px', background: '#ef4444', color: 'white', fontSize: 10, fontWeight: 700, borderRadius: 10 }}>{badge}</span>
+              )}
+              {active && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#00338D', flexShrink: 0 }} />}
             </Link>
           )
         })}
       </nav>
 
       {/* Logout */}
-      <div className="px-3 py-4 border-t border-gray-100">
-        <button onClick={onLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all text-sm font-medium">
-          <LogOut className="w-4 h-4" />
+      <div style={{ padding: '10px', borderTop: '1px solid #F0F4F8' }}>
+        <button
+          onClick={onLogout}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+            padding: '9px 12px', borderRadius: 8,
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: '#9BA8B5', fontSize: 13, fontWeight: 500,
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#ef4444' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#9BA8B5' }}
+        >
+          <LogOut size={15} />
           Sign Out
         </button>
       </div>

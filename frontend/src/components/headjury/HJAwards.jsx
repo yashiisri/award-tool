@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Award, Plus, X, Users, ChevronRight, Trash2 } from 'lucide-react'
+import { Award, Plus, X, Users, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 
 const CRITERIA = [
-  { id: 'governance', label: 'Governance & Societal Responsibilities' },
+  { id: 'governance',      label: 'Governance & Societal Responsibilities' },
   { id: 'org_performance', label: 'Organisational Performance' },
-  { id: 'general', label: 'General Eligibility' },
+  { id: 'general',         label: 'General Eligibility' },
 ]
 
 export default function HJAwards() {
@@ -27,7 +27,8 @@ export default function HJAwards() {
     e.preventDefault(); setLoading(true)
     try {
       await api.post('/head-jury/awards', form)
-      setShowModal(false); setForm({ name: '', description: '', num_nominees: 5, criteria: ['governance', 'org_performance', 'general'] })
+      setShowModal(false)
+      setForm({ name: '', description: '', num_nominees: 5, criteria: ['governance', 'org_performance', 'general'] })
       fetchAwards()
     } catch (e) {} finally { setLoading(false) }
   }
@@ -38,35 +39,48 @@ export default function HJAwards() {
   }
 
   return (
-    <div className="p-8">
-      <PageHeader icon={Award} title="Awards" subtitle="Create and manage AIMA award categories" accent="#7F3F98" light="#F5EEF8"
+    <div style={{ padding: '32px 36px', fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <PageHeader
+        icon={Award} title="Awards" subtitle="Create and manage award categories"
         action={
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#7F3F98] text-white rounded-xl font-semibold text-sm hover:bg-[#6a3480] transition-colors shadow-sm">
-            <Plus className="w-4 h-4" /> New Award
+          <button
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#00338D', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            onClick={() => setShowModal(true)}
+            onMouseEnter={e => e.currentTarget.style.background = '#002a73'}
+            onMouseLeave={e => e.currentTarget.style.background = '#00338D'}>
+            <Plus size={14} /> New Award
           </button>
         }
       />
 
       {awards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 text-center">
-          <div className="w-16 h-16 bg-[#F5EEF8] rounded-2xl flex items-center justify-center mb-4"><Award className="w-8 h-8 text-[#7F3F98]" /></div>
-          <p className="text-gray-500 font-semibold">No awards yet</p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', background: 'white', borderRadius: 14, border: '1px solid #E8ECF0', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, background: '#EEF2FF', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <Award size={24} color="#00338D" />
+          </div>
+          <p style={{ color: '#0A1628', fontWeight: 700, fontSize: 15, marginBottom: 4 }}>No awards yet</p>
+          <p style={{ color: '#9BA8B5', fontSize: 13 }}>Awards created by admin will appear here.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
           {awards.map(award => (
-            <div key={award.id} onClick={() => {
-                localStorage.setItem('hj_selected_award', award.id)
-                navigate(`/head_jury/nominees?award=${award.id}`)
-              }}
-              className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg hover:border-[#7F3F98]/20 transition-all cursor-pointer hover:-translate-y-0.5">
-              <div className="w-11 h-11 bg-[#F5EEF8] rounded-xl flex items-center justify-center mb-4"><Award className="w-5 h-5 text-[#7F3F98]" /></div>
-              <h3 className="font-black text-[#1a1a2e] text-base mb-2">{award.name}</h3>
-              <p className="text-gray-400 text-sm leading-relaxed mb-4 line-clamp-2">{award.description}</p>
-              <div className="flex items-center gap-2 text-xs text-gray-400 mb-4"><Users className="w-3.5 h-3.5" />{award.num_nominees} nominees</div>
-              <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                <span className="text-xs text-[#7F3F98] font-semibold">View Nominees</span>
-                <ChevronRight className="w-4 h-4 text-[#7F3F98] group-hover:translate-x-1 transition-transform" />
+            <div key={award.id}
+              onClick={() => { localStorage.setItem('hj_selected_award', award.id); navigate(`/head_jury/nominees?award=${award.id}`) }}
+              style={{ background: 'white', border: '1px solid #E8ECF0', borderRadius: 14, padding: '24px', cursor: 'pointer', transition: 'all 0.18s ease' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#00338D40'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,51,141,0.09)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8ECF0'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)' }}
+            >
+              <div style={{ width: 42, height: 42, background: '#EEF2FF', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Award size={18} color="#00338D" />
+              </div>
+              <h3 style={{ color: '#0A1628', fontWeight: 700, fontSize: 15, marginBottom: 6, letterSpacing: '-0.01em' }}>{award.name}</h3>
+              <p style={{ color: '#9BA8B5', fontSize: 13, lineHeight: 1.6, marginBottom: 16, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{award.description}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#9BA8B5', fontSize: 12, marginBottom: 16 }}>
+                <Users size={12} />{award.num_nominees} nominees
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 14, borderTop: '1px solid #F0F4F8' }}>
+                <span style={{ color: '#00338D', fontSize: 12, fontWeight: 600 }}>View Nominees</span>
+                <ChevronRight size={15} color="#00338D" />
               </div>
             </div>
           ))}
@@ -74,47 +88,70 @@ export default function HJAwards() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-lg font-black text-[#1a1a2e]">Create New Award</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,22,40,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }}>
+          <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.15)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px 28px', borderBottom: '1px solid #F0F4F8' }}>
+              <div>
+                <h2 style={{ color: '#0A1628', fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em' }}>Create New Award</h2>
+                <p style={{ color: '#9BA8B5', fontSize: 13, marginTop: 2 }}>Configure award details and criteria</p>
+              </div>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9BA8B5', padding: 4 }}
+                onMouseEnter={e => e.currentTarget.style.color = '#0A1628'}
+                onMouseLeave={e => e.currentTarget.style.color = '#9BA8B5'}>
+                <X size={18} />
+              </button>
             </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+            <form onSubmit={handleCreate} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {[['Award Name *', 'name', 'text', 'e.g. Business Leader of the Year'], ['Description *', 'description', 'textarea', 'Describe the purpose of this award...']].map(([label, key, type, ph]) => (
+                <div key={key}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9BA8B5', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</label>
+                  {type === 'textarea'
+                    ? <textarea value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
+                        style={{ width: '100%', padding: '11px 14px', background: '#F7F9FC', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, color: '#0A1628', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+                        rows={3} placeholder={ph} required
+                        onFocus={e => e.target.style.borderColor = '#00338D'}
+                        onBlur={e => e.target.style.borderColor = '#E8ECF0'} />
+                    : <input type="text" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
+                        style={{ width: '100%', padding: '11px 14px', background: '#F7F9FC', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, color: '#0A1628', outline: 'none', boxSizing: 'border-box' }}
+                        placeholder={ph} required
+                        onFocus={e => e.target.style.borderColor = '#00338D'}
+                        onBlur={e => e.target.style.borderColor = '#E8ECF0'} />
+                  }
+                </div>
+              ))}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Award Name</label>
-                <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7F3F98]/30 text-sm" placeholder="e.g. Business Leader of the Year" required />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description</label>
-                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7F3F98]/30 resize-none text-sm" rows="3" required />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Number of Nominees</label>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9BA8B5', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Number of Nominees</label>
                 <input type="number" min="1" max="20" value={form.num_nominees} onChange={e => setForm({ ...form, num_nominees: parseInt(e.target.value) })}
-                  className="w-28 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#7F3F98]/30 text-sm" />
+                  style={{ width: 100, padding: '11px 14px', background: '#F7F9FC', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, color: '#0A1628', outline: 'none' }}
+                  onFocus={e => e.target.style.borderColor = '#00338D'}
+                  onBlur={e => e.target.style.borderColor = '#E8ECF0'} />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Evaluation Criteria</label>
-                <div className="space-y-2">
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9BA8B5', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>Evaluation Criteria</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {CRITERIA.map(({ id, label }) => (
-                    <div key={id} onClick={() => toggleCriteria(id)}
-                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${form.criteria.includes(id) ? 'border-[#7F3F98]/30 bg-[#F5EEF8]/50' : 'border-gray-200 bg-gray-50'}`}>
-                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${form.criteria.includes(id) ? 'bg-[#7F3F98] border-[#7F3F98]' : 'border-gray-300'}`}>
-                        {form.criteria.includes(id) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                    <div key={id}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', border: `1px solid ${form.criteria.includes(id) ? '#00338D40' : '#E8ECF0'}`, borderRadius: 9, background: form.criteria.includes(id) ? '#F5F7FF' : '#F7F9FC', cursor: 'pointer' }}
+                      onClick={() => toggleCriteria(id)}>
+                      <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${form.criteria.includes(id) ? '#00338D' : '#D0D8E4'}`, background: form.criteria.includes(id) ? '#00338D' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {form.criteria.includes(id) && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       </div>
-                      <span className="text-sm font-medium text-[#1a1a2e]">{label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#0A1628' }}>{label}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={loading} className="flex-1 py-3 bg-[#7F3F98] text-white rounded-xl font-semibold text-sm hover:bg-[#6a3480] disabled:opacity-50 transition-colors">
+              <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+                <button type="submit" disabled={loading}
+                  style={{ flex: 1, padding: '12px', background: loading ? '#9BA8B5' : '#00338D', color: 'white', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}
+                  onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#002a73' }}
+                  onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#00338D' }}>
                   {loading ? 'Creating...' : 'Create Award'}
                 </button>
-                <button type="button" onClick={() => setShowModal(false)} className="px-5 py-3 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors">Cancel</button>
+                <button type="button" onClick={() => setShowModal(false)}
+                  style={{ padding: '12px 18px', background: '#F7F9FC', color: '#6B7A8D', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
               </div>
             </form>
           </div>

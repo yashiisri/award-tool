@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Award, Users, ChevronRight, CheckCircle, Lock } from 'lucide-react'
+import { Award, Users, ChevronRight, CheckCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
@@ -24,53 +24,46 @@ export default function JuryAwards() {
   }
 
   return (
-    <div className="p-8">
-      <PageHeader icon={Award} title="Award Categories" subtitle="Select an award to view nominees and cast your vote" accent="#0091DA" light="#EAF5FC" />
+    <div style={{ padding: '32px 36px', fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <PageHeader icon={Award} title="Award Categories" subtitle="Select an award to view nominees and cast your vote" />
 
       {awards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 text-center">
-          <div className="w-16 h-16 bg-[#EAF5FC] rounded-2xl flex items-center justify-center mb-4">
-            <Award className="w-8 h-8 text-[#0091DA]" />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', background: 'white', borderRadius: 14, border: '1px solid #E8ECF0', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, background: '#EEF2FF', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <Award size={24} color="#00338D" />
           </div>
-          <p className="text-gray-500 font-semibold">No awards available yet</p>
-          <p className="text-gray-400 text-sm mt-1">The admin will create awards for this cycle.</p>
+          <p style={{ color: '#0A1628', fontWeight: 700, fontSize: 15, marginBottom: 4 }}>No awards available yet</p>
+          <p style={{ color: '#9BA8B5', fontSize: 13 }}>The admin will create awards for this cycle.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
           {awards.map(award => {
             const ctrl = controls[award.id] || {}
             const votingOpen = ctrl.voting_enabled
             return (
-              <div key={award.id} onClick={() => {
-                  localStorage.setItem('jury_selected_award', award.id)
-                  navigate(`/jury/nominees?award=${award.id}`)
-                }}
-                className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-xl hover:border-[#0091DA]/20 transition-all cursor-pointer hover:-translate-y-0.5">
-                {/* Top */}
-                <div className="flex items-start justify-between mb-5">
-                  <div className="w-12 h-12 bg-[#EAF5FC] rounded-xl flex items-center justify-center">
-                    <Award className="w-6 h-6 text-[#0091DA]" />
+              <div key={award.id}
+                onClick={() => { localStorage.setItem('jury_selected_award', award.id); navigate(`/jury/nominees?award=${award.id}`) }}
+                style={{ background: 'white', border: '1px solid #E8ECF0', borderRadius: 14, padding: '24px', cursor: 'pointer', transition: 'all 0.18s ease' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#00338D40'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,51,141,0.09)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8ECF0'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <div style={{ width: 42, height: 42, background: '#EEF2FF', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Award size={18} color="#00338D" />
                   </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${votingOpen ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {votingOpen ? <><div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />Voting Open</> : <><Lock className="w-3 h-3" />Voting Closed</>}
-                    </span>
-                  </div>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: votingOpen ? '#ECFDF5' : '#F7F9FC', color: votingOpen ? '#059669' : '#9BA8B5', border: `1px solid ${votingOpen ? '#A7F3D0' : '#E8ECF0'}` }}>
+                    {votingOpen ? <><div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e' }} />Voting Open</> : <>Closed</>}
+                  </span>
                 </div>
-
-                <h3 className="font-black text-[#1a1a2e] text-base mb-2">{award.name}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{award.description}</p>
-
-                <div className="flex items-center gap-3 text-xs text-gray-400 mb-5">
-                  <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" />{award.num_nominees} nominees</span>
-                  {award.results_published && (
-                    <span className="flex items-center gap-1.5 text-green-600"><CheckCircle className="w-3.5 h-3.5" />Results out</span>
-                  )}
+                <h3 style={{ color: '#0A1628', fontWeight: 700, fontSize: 15, marginBottom: 6, letterSpacing: '-0.01em' }}>{award.name}</h3>
+                <p style={{ color: '#9BA8B5', fontSize: 13, lineHeight: 1.6, marginBottom: 16, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{award.description}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#9BA8B5', fontSize: 12, marginBottom: 16 }}>
+                  <Users size={12} />{award.num_nominees} nominees
+                  {award.results_published && <span style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 4, color: '#059669' }}><CheckCircle size={12} />Results out</span>}
                 </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                  <span className="text-xs text-[#0091DA] font-semibold">View Nominees</span>
-                  <ChevronRight className="w-4 h-4 text-[#0091DA] group-hover:translate-x-1 transition-transform" />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 14, borderTop: '1px solid #F0F4F8' }}>
+                  <span style={{ color: '#00338D', fontSize: 12, fontWeight: 600 }}>View Nominees</span>
+                  <ChevronRight size={15} color="#00338D" />
                 </div>
               </div>
             )

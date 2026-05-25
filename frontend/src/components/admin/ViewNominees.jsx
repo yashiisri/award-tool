@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Users, Plus, Trash2, X, Sparkles, AlertTriangle,
-  ChevronDown, Building2, Briefcase, ExternalLink,
-  CheckCircle, Loader2, Brain, BarChart3, Globe
+  ChevronDown, Building2, Briefcase,
+  CheckCircle, Loader2, Brain, BarChart3
 } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
@@ -45,8 +45,8 @@ function AIResultsModal({ results, onConfirm, onClose, saving }) {
               <Brain className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-base font-black text-[#1a1a2e]">AI-Discovered Nominees</h2>
-              <p className="text-xs text-gray-400">{results.length} high-profile candidates found · select to add</p>
+              <h2 className="text-base font-black text-[#1a1a2e]">Nominee Suggestions</h2>
+              <p className="text-xs text-gray-400">{results.length} candidates found · select to add</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -96,21 +96,12 @@ function AIResultsModal({ results, onConfirm, onClose, saving }) {
                     {reason && (
                       <p className="text-xs text-gray-600 leading-relaxed mb-2 line-clamp-2">{reason}</p>
                     )}
-                    {/* Source links */}
+                    {/* Source tags */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      {wikiUrl && (
-                        <a href={wikiUrl} target="_blank" rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-xs text-[#0091DA] hover:underline">
-                          <Globe className="w-3 h-3" /> Wikipedia
-                        </a>
-                      )}
-                      {sources.filter(s => s && s !== wikiUrl).slice(0, 2).map((s, si) => (
-                        <a key={si} href={s} target="_blank" rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 hover:underline">
-                          <ExternalLink className="w-3 h-3" /> Source {si + 1}
-                        </a>
+                      {sources.slice(0, 3).map((s, si) => (
+                        <span key={si} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EEF2FF] text-[#00338D] text-xs rounded font-medium border border-[#00338D]/10">
+                          {s}
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -301,17 +292,17 @@ export default function ViewNominees() {
 
       {/* AI loading state */}
       {aiLoading && (
-        <div className="mb-6 p-5 bg-gradient-to-r from-[#7F3F98]/5 to-[#0091DA]/5 border border-[#7F3F98]/20 rounded-xl flex items-center gap-4">
-          <div className="w-10 h-10 bg-gradient-to-br from-[#7F3F98] to-[#0091DA] rounded-xl flex items-center justify-center flex-shrink-0">
+        <div className="mb-6 p-5 bg-[#EEF2FF] border border-[#00338D]/15 rounded-xl flex items-center gap-4">
+          <div className="w-10 h-10 bg-[#00338D] rounded-xl flex items-center justify-center flex-shrink-0">
             <Brain className="w-5 h-5 text-white animate-pulse" />
           </div>
-          <div>
-            <p className="font-bold text-[#1a1a2e] text-sm">AI Research Engine Running</p>
-            <p className="text-gray-500 text-xs mt-0.5">
-              Searching Wikipedia & DuckDuckGo · Filtering high-profile leaders · Ranking with Llama 3.3...
+          <div className="flex-1">
+            <p className="font-bold text-[#0A1628] text-sm">Searching verified sources...</p>
+            <p className="text-[#6B7A8D] text-xs mt-0.5">
+              Scraping business news, rankings &amp; award databases · Ranking with AI · Fetching profile photos
             </p>
           </div>
-          <Loader2 className="w-5 h-5 text-[#7F3F98] animate-spin ml-auto flex-shrink-0" />
+          <Loader2 className="w-5 h-5 text-[#00338D] animate-spin flex-shrink-0" />
         </div>
       )}
 
