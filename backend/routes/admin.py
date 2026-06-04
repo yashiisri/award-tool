@@ -93,6 +93,12 @@ class AISearchRequest(BaseModel):
     award_id: str
     num_results: int = 5
 
+class ValidateNomineeRequest(BaseModel):
+    nominee_id: str
+
+class UnflagNomineeRequest(BaseModel):
+    nominee_id: str
+
 # ── Awards ─────────────────────────────────────────────────────────────────────
 
 @router.post("/awards")
@@ -178,6 +184,67 @@ async def update_nominee(nominee_id: str, update: NomineeUpdate, user=Depends(ge
     await log_action(db, user, "update_nominee", {"nominee_id": nominee_id})
     return {"message": "Updated"}
 
+@router.post("/nominees/{nominee_id}/validate")
+async def validate_nominee(nominee_id: str, user=Depends(get_current_user)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403)
+    db = get_database()
+    nom = await db.nominees.find_one({"_id": ObjectId(nominee_id)})
+    if not nom:
+        raise HTTPException(status_code=404, detail="Nominee not found")
+    await db.nominees.update_one(
+        {"_id": ObjectId(nominee_id)},
+        {"$set": {"validated": True, "validated_by_admin": user["sub"], "validated_at": datetime.utcnow()}}
+    )
+    await log_action(db, user, "validate_nominee", {"nominee_id": nominee_id, "name": nom.get("name", "")})
+    return {"message": "Nominee approved"}
+
+@router.post("/nominees/{nominee_id}/unflag")
+async def unflag_nominee(nominee_id: str, user=Depends(get_current_user)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403)
+    db = get_database()
+    await db.nominees.update_one(
+        {"_id": ObjectId(nominee_id)},
+        {"$set": {"red_flagged": False, "red_flag_reason": None, "red_flagged_by": None}}
+    )
+    await log_action(db, user, "unflag_nominee", {"nominee_id": nominee_id})
+    return {"message": "Flag cleared"}
+
+@router.get("/rankings/top3/{award_id}")
+async def get_top3_rankings(award_id: str, user=Depends(get_current_user)):
+    """Aggregate all jury rankings for an award and return top-3 nominees by total points."""
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403)
+    db = get_database()
+
+    # Aggregate points across all jury members
+    pipeline = [
+        {"$match": {"award_id": award_id}},
+        {"$group": {"_id": "$nominee_id", "total_points": {"$sum": "$points"}, "jury_count": {"$sum": 1}}},
+        {"$sort": {"total_points": -1}},
+        {"$limit": 3},
+    ]
+    ranked = await db.jury_rankings.aggregate(pipeline).to_list(3)
+
+    # Hydrate with nominee details
+    result = []
+    for i, r in enumerate(ranked):
+        nom = await db.nominees.find_one({"_id": ObjectId(r["_id"])})
+        if nom:
+            result.append({
+                "position": i + 1,
+                "nominee_id": r["_id"],
+                "name": nom.get("name", ""),
+                "designation": nom.get("designation", ""),
+                "organisation": nom.get("organisation", ""),
+                "photo_url": nom.get("photo_url", ""),
+                "total_points": r["total_points"],
+                "jury_count": r["jury_count"],
+            })
+    return result
+
+
 @router.delete("/nominees/{nominee_id}")
 async def delete_nominee(nominee_id: str, user=Depends(get_current_user)):
     if user["role"] != "admin":
@@ -187,6 +254,48 @@ async def delete_nominee(nominee_id: str, user=Depends(get_current_user)):
     await db.nominees.delete_one({"_id": ObjectId(nominee_id)})
     await log_action(db, user, "delete_nominee", {"nominee_id": nominee_id, "name": nom.get("name", "") if nom else ""})
     return {"message": "Deleted"}
+
+@router.get("/rankings/by-jury/{award_id}")
+async def get_rankings_by_jury(award_id: str, user=Depends(get_current_user)):
+    """Return each jury member's full ranked list for an award, hydrated with nominee details."""
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403)
+    db = get_database()
+
+    # Fetch all ranking rows for this award
+    rows = await db.jury_rankings.find({"award_id": award_id}).to_list(1000)
+
+    # Pre-fetch all nominees for this award in one query
+    nominees_list = await db.nominees.find({"award_id": award_id}).to_list(200)
+    nominee_map = {str(n["_id"]): n for n in nominees_list}
+
+    # Group by jury_id, sorted by rank
+    by_jury = {}
+    for row in rows:
+        jid = row["jury_id"]
+        if jid not in by_jury:
+            by_jury[jid] = {
+                "jury_id": jid,
+                "jury_role": row.get("jury_role", "jury"),
+                "submitted_at": row.get("created_at", "").isoformat() if row.get("created_at") else "",
+                "rankings": [],
+            }
+        nom = nominee_map.get(row["nominee_id"], {})
+        by_jury[jid]["rankings"].append({
+            "rank": row["rank"],
+            "points": row["points"],
+            "nominee_id": row["nominee_id"],
+            "name": nom.get("name", "Unknown"),
+            "designation": nom.get("designation", ""),
+            "organisation": nom.get("organisation", ""),
+            "photo_url": nom.get("photo_url", ""),
+        })
+
+    # Sort each member's list by rank
+    for jid in by_jury:
+        by_jury[jid]["rankings"].sort(key=lambda r: r["rank"])
+
+    return list(by_jury.values())
 
 @router.post("/red-flag")
 async def red_flag_nominee(req: RedFlagRequest, user=Depends(get_current_user)):

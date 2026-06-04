@@ -20,9 +20,9 @@ function useReveal(threshold = 0.12) {
 const FEATURES = [
   { icon: Sparkles,    number: '01', title: 'AI Nominee Discovery',  desc: "Surfaces distinguished business leaders automatically so your shortlist starts with the right names." },
   { icon: Users,       number: '02', title: 'Multi-Role Governance', desc: "Admin, Head Jury, and Jury each operate in purpose-built workspaces with enforced permissions and clear accountability." },
-  { icon: Trophy,      number: '03', title: 'Structured Ranking',    desc: "Jury members rank nominees on an intuitive board. AI provides a starting suggestion — human judgment shapes the final outcome." },
+  { icon: Trophy,      number: '03', title: 'Structured Ranking',    desc: "Jury members rank nominees on an intuitive drag-and-drop board. Every position carries weighted points, ensuring a rigorous and defensible outcome." },
   { icon: BarChart3,   number: '04', title: 'Real-Time Consensus',   desc: "A live leaderboard shows where collective opinion converges, giving the Head Jury full visibility before the final decision." },
-  { icon: CheckCircle, number: '05', title: 'Nominee Vetting',       desc: "Every jury member validates each nominee before voting opens — credentials checked, concerns raised, only the best advance." },
+  { icon: CheckCircle, number: '05', title: 'Admin-Controlled Vetting', desc: "Nominees are reviewed and approved by the administrator before jury access. Credentials verified, standards upheld, only the best advance." },
   { icon: Lock,        number: '06', title: 'Complete Audit Trail',  desc: "Every action logged. Every role enforced. Access granted only by admins — transparent, credible, and beyond reproach." },
 ]
 
@@ -59,7 +59,7 @@ function FeatureCard({ icon: Icon, number, title, desc, index }) {
 const HOW_IT_WORKS = [
   { step: '01', label: 'Create Award',      desc: 'Admin configures the award, sets criteria and nominee targets.', icon: Trophy },
   { step: '02', label: 'Discover Nominees', desc: 'AI surfaces high-profile candidates. Admin reviews and finalises.', icon: Sparkles },
-  { step: '03', label: 'Jury Evaluation',   desc: 'Jury validates nominees and submits their ranked order.', icon: Users },
+  { step: '03', label: 'Jury Evaluation',   desc: 'Jury reviews approved nominees and submits their ranked order. Head Jury consolidates and locks the result.', icon: Users },
   { step: '04', label: 'Final Result',      desc: 'Head Jury locks the final ranking as the official result.', icon: CheckCircle },
 ]
 

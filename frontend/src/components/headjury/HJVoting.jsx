@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   GripVertical, Trophy, Lock, CheckCircle,
-  Sparkles, RotateCcw, Send, Building2, Briefcase, Info, ArrowLeft, Award, ArrowRight
+  Send, Building2, Briefcase, Info, ArrowLeft, Award, ArrowRight
 } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
@@ -74,7 +74,7 @@ function PositionBadge({ index }) {
   }
   return (
     <div className="w-9 h-9 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center flex-shrink-0">
-      <span className="text-gray-400 font-black text-xs">#{index + 1}</span>
+      <span className="text-gray-400 font-bold text-xs">#{index + 1}</span>
     </div>
   )
 }
@@ -86,7 +86,6 @@ export default function HJVoting() {
 
   const [awardName, setAwardName] = useState('')
   const [nominees, setNominees] = useState([])
-  const [aiOrder, setAiOrder] = useState([])
   const [submitted, setSubmitted] = useState(false)
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [votingOpen, setVotingOpen] = useState(false)
@@ -114,13 +113,6 @@ export default function HJVoting() {
       setAwardName(award?.name || '')
       setVotingOpen(ctrlRes.data.voting_enabled || false)
 
-      const sorted = [...nomRes.data].sort((a, b) => {
-        const sa = a.rationale_data?.confidence_score ?? 0
-        const sb = b.rationale_data?.confidence_score ?? 0
-        return sb - sa
-      })
-      setAiOrder(sorted.map(n => n.id))
-
       if (rankRes.data && rankRes.data.rankings?.length > 0) {
         const rankMap = {}
         rankRes.data.rankings.forEach(r => { rankMap[r.nominee_id] = r.rank })
@@ -128,7 +120,7 @@ export default function HJVoting() {
         setNominees(ordered)
         setSubmitted(true)
       } else {
-        setNominees(sorted)
+        setNominees(nomRes.data)
         setSubmitted(false)
       }
     } catch (e) { console.error(e) }
@@ -177,10 +169,7 @@ export default function HJVoting() {
     touchStartIdx.current = null; touchStartY.current = null; setDragOverIdx(null)
   }
 
-  const handleReset = () => {
-    setNominees([...nominees].sort((a, b) => aiOrder.indexOf(a.id) - aiOrder.indexOf(b.id)))
-  }
-
+  // ── Submit ────────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!votingOpen || !awardFromUrl) return
     setSaving(true)
@@ -201,15 +190,17 @@ export default function HJVoting() {
   if (!awardFromUrl) {
     return (
       <div className="p-8">
-        <PageHeader icon={Trophy} title="Your Vote" subtitle="Drag nominees to rank them" accent="#7F3F98" light="#F5EEF8" />
+        <PageHeader icon={Trophy} title="Your Vote" subtitle="Drag nominees to set your preferred order" accent="#7F3F98" light="#F5EEF8" />
         <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 text-center">
           <div className="w-14 h-14 bg-[#F5EEF8] rounded-2xl flex items-center justify-center mb-4">
             <Award className="w-7 h-7 text-[#7F3F98]" />
           </div>
-          <p className="text-gray-500 font-semibold mb-1">No award selected</p>
-          <p className="text-gray-400 text-sm mb-6">Go to Awards and click an award to start ranking.</p>
-          <button onClick={() => navigate('/head_jury/awards')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#7F3F98] text-white rounded-xl font-semibold text-sm hover:bg-[#6a3480] transition-colors">
+          <p className="text-gray-600 font-semibold text-sm mb-1">No award selected</p>
+          <p className="text-gray-400 text-xs mb-6">Navigate to Awards and select an award to begin ranking.</p>
+          <button
+            onClick={() => navigate('/head_jury/awards')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#00338D] text-white rounded-xl font-semibold text-sm hover:bg-[#002a73] transition-colors"
+          >
             <ArrowLeft className="w-4 h-4" /> Go to Awards
           </button>
         </div>
@@ -223,14 +214,16 @@ export default function HJVoting() {
 
       {/* Toast */}
       {showSuccessPopup && createPortal(
-        <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3 px-4 py-3 bg-white border border-amber-200 rounded-2xl shadow-xl shadow-amber-100/60"
-          style={{ animation: 'toast-in-out 3s ease forwards' }}>
+        <div
+          className="fixed top-6 right-6 z-[9999] flex items-center gap-3 px-4 py-3 bg-white border border-amber-200 rounded-2xl shadow-xl shadow-amber-100/60"
+          style={{ animation: 'toast-in-out 3s ease forwards' }}
+        >
           <div className="w-9 h-9 bg-gradient-to-br from-amber-400 to-amber-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
             <Trophy className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="font-black text-[#1a1a2e] text-sm leading-tight">Ranking Submitted!</p>
-            <p className="text-gray-400 text-xs mt-0.5">Results will be published by the admin soon.</p>
+            <p className="font-bold text-[#0A1628] text-sm leading-tight">Ranking Submitted</p>
+            <p className="text-gray-400 text-xs mt-0.5">Results will be published by the administrator.</p>
           </div>
           <style>{`
             @keyframes toast-in-out {
@@ -245,12 +238,20 @@ export default function HJVoting() {
         document.body
       )}
 
-      <PageHeader icon={Trophy} title="Your Vote" subtitle="Drag nominees to rank them — your order determines their points" accent="#7F3F98" light="#F5EEF8" />
+      <PageHeader
+        icon={Trophy}
+        title="Your Vote"
+        subtitle="Drag nominees to set your preferred order — position determines points"
+        accent="#7F3F98"
+        light="#F5EEF8"
+      />
 
       {/* Award pill + back */}
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(`/head_jury/nominees?award=${awardFromUrl}`)}
-          className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-[#7F3F98] hover:border-[#7F3F98]/30 text-xs font-semibold transition-all">
+        <button
+          onClick={() => navigate(`/head_jury/nominees?award=${awardFromUrl}`)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-[#7F3F98] hover:border-[#7F3F98]/30 text-xs font-semibold transition-all"
+        >
           <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
         {awardName && (
@@ -266,8 +267,8 @@ export default function HJVoting() {
         <div className="mb-6 flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
           <Lock className="w-5 h-5 text-gray-400 flex-shrink-0" />
           <div>
-            <p className="font-semibold text-gray-600 text-sm">Ranking is not open yet</p>
-            <p className="text-gray-400 text-xs mt-0.5">The admin will open voting when the time comes.</p>
+            <p className="font-semibold text-gray-700 text-sm">Ranking is not open</p>
+            <p className="text-gray-400 text-xs mt-0.5">The administrator will open voting when ready.</p>
           </div>
         </div>
       )}
@@ -278,35 +279,15 @@ export default function HJVoting() {
           <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
           <div>
             <p className="font-semibold text-green-800 text-sm">Ranking submitted successfully</p>
-            <p className="text-green-600 text-xs mt-0.5">You can still drag to reorder and resubmit.</p>
+            <p className="text-green-600 text-xs mt-0.5">You may drag to reorder and resubmit at any time before voting closes.</p>
           </div>
-        </div>
-      )}
-
-      {/* AI notice */}
-      {nominees.length > 0 && !loading && (
-        <div className="mb-5 flex items-start gap-3 p-4 bg-gradient-to-r from-[#7F3F98]/5 to-[#0091DA]/5 border border-[#7F3F98]/15 rounded-xl">
-          <Sparkles className="w-4 h-4 text-[#7F3F98] flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-xs font-bold text-[#1a1a2e]">AI-Suggested Order</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Nominees are pre-ordered by AI confidence score. Drag to reorder.
-              Position 1 earns <strong>{getPoints(0)} pts</strong>, position 2 earns <strong>{getPoints(1)} pts</strong>, and so on.
-            </p>
-          </div>
-          {!submitted && (
-            <button onClick={handleReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-500 hover:text-[#7F3F98] hover:border-[#7F3F98]/30 transition-all flex-shrink-0">
-              <RotateCcw className="w-3 h-3" /> Reset to AI order
-            </button>
-          )}
         </div>
       )}
 
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-[#7F3F98] border-t-transparent rounded-full animate-spin" />
+          <div className="w-7 h-7 border-2 border-[#7F3F98] border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
@@ -314,7 +295,7 @@ export default function HJVoting() {
       {!loading && nominees.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
           <Trophy className="w-10 h-10 text-gray-300 mb-3" />
-          <p className="text-gray-400 text-sm">No nominees for this award yet.</p>
+          <p className="text-gray-500 font-medium text-sm">No nominees available for this award.</p>
         </div>
       )}
 
@@ -323,7 +304,6 @@ export default function HJVoting() {
         <div className="space-y-2 mb-6">
           {nominees.map((nom, index) => {
             const pts = getPoints(index)
-            const isAiTop = aiOrder[0] === nom.id
             const isDraggingOver = dragOverIdx === index
             return (
               <div
@@ -339,7 +319,7 @@ export default function HJVoting() {
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
                 className={`
-                  flex items-center gap-3 p-4 bg-white rounded-2xl border-2 transition-all select-none
+                  flex items-center gap-3 p-4 bg-white rounded-xl border transition-all select-none
                   ${isDraggingOver ? 'border-[#7F3F98] shadow-lg scale-[1.01]' : 'border-gray-100'}
                   ${votingOpen && !submitted ? 'cursor-grab active:cursor-grabbing hover:border-[#7F3F98]/30 hover:shadow-md' : 'cursor-default'}
                   ${submitted ? 'opacity-90' : ''}
@@ -355,19 +335,12 @@ export default function HJVoting() {
                   {nom.photo_url ? (
                     <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
                   ) : (
-                    <span className="text-[#7F3F98] font-black text-sm">{nom.name?.[0]}</span>
+                    <span className="text-[#7F3F98] font-bold text-sm">{nom.name?.[0]}</span>
                   )}
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-black text-[#1a1a2e] text-sm truncate">{nom.name}</span>
-                    {isAiTop && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#7F3F98]/10 text-[#7F3F98] text-xs rounded-md font-semibold flex-shrink-0">
-                        <Sparkles className="w-2.5 h-2.5" /> AI #1
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-bold text-[#0A1628] text-sm block truncate">{nom.name}</span>
                   <div className="flex items-center gap-3 mt-0.5">
                     <span className="flex items-center gap-1 text-gray-400 text-xs truncate">
                       <Briefcase className="w-3 h-3 flex-shrink-0" />{nom.designation}
@@ -379,7 +352,7 @@ export default function HJVoting() {
                 </div>
 
                 <div className={`
-                  flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl border-2
+                  flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl border
                   ${index === 0 ? 'bg-amber-50 border-amber-200 text-amber-600' :
                     index === 1 ? 'bg-gray-50 border-gray-200 text-gray-500' :
                     index === 2 ? 'bg-orange-50 border-orange-200 text-orange-500' :
@@ -405,7 +378,7 @@ export default function HJVoting() {
             {nominees.map((_, i) => (
               <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-lg">
                 <span className="text-xs text-gray-500">#{i + 1}</span>
-                <span className="text-xs font-black text-[#7F3F98]">{getPoints(i)} pts</span>
+                <span className="text-xs font-bold text-[#7F3F98]">{getPoints(i)} pts</span>
               </div>
             ))}
           </div>
@@ -419,7 +392,7 @@ export default function HJVoting() {
             ? () => navigate(`/head_jury/results${awardFromUrl ? `?award=${awardFromUrl}` : ''}`)
             : handleSubmit}
           disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-[#7F3F98] to-[#5B2D6E] text-white rounded-2xl font-black text-sm hover:opacity-90 disabled:opacity-60 transition-all shadow-lg"
+          className="w-full flex items-center justify-center gap-2 py-4 bg-[#00338D] text-white rounded-xl font-bold text-sm hover:bg-[#002a73] disabled:opacity-60 transition-all shadow-md"
         >
           {saving ? (
             <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Submitting...</>

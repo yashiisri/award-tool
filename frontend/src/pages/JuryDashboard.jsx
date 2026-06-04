@@ -9,9 +9,9 @@ import JuryResults from '../components/jury/JuryResults'
 
 const BASE_NAV = [
   { path: '/jury/awards',   icon: Award,    label: 'Award Categories', awardParam: false },
-  { path: '/jury/nominees', icon: FileText,  label: 'Nominees & Validate', awardParam: true },
-  { path: '/jury/ranking',  icon: Trophy,    label: 'Jury Ranking', awardParam: true },
-  { path: '/jury/results',  icon: BarChart3, label: 'Results', awardParam: true },
+  { path: '/jury/nominees', icon: FileText,  label: 'Nominees',        awardParam: true  },
+  { path: '/jury/ranking',  icon: Trophy,    label: 'Jury Ranking',    awardParam: true  },
+  { path: '/jury/results',  icon: BarChart3, label: 'Results',         awardParam: true  },
 ]
 
 function useSelectedAward() {
