@@ -201,13 +201,33 @@ export default function ViewNominees() {
     setAiLoading(true); setAiError('')
     try {
       const award = awards.find(a => a.id === selectedAward)
-      const { data } = await api.post('/admin/ai-search-nominees', {
-        award_id: selectedAward,
-        num_results: award?.num_nominees || 5,
+      // Call the new v2 AI search engine — saves directly to DB
+      await api.post(`/admin/awards/${selectedAward}/ai-search`, {
+        award_id:            selectedAward,
+        award_name:          award?.name || '',
+        award_description:   award?.description || '',
+        num_nominees:        award?.num_nominees || 5,
+        evaluation_criteria: award?.criteria || [],
       })
-      setAiResults(data)
+      // Nominees saved directly to DB — just refresh the list
+      fetchNominees()
     } catch (err) {
-      setAiError(err.response?.data?.detail || 'AI search failed. Please try again.')
+      const raw = err.response?.data?.detail
+      let msg = 'AI search failed. Please try again.'
+      if (typeof raw === 'string') {
+        if (raw.toLowerCase().includes('rate limit') || raw.toLowerCase().includes('token')) {
+          msg = 'AI quota reached for today. The limit resets at midnight UTC. You can add nominees manually in the meantime, or try again tomorrow.'
+        } else if (raw.toLowerCase().includes('groq_key') || raw.toLowerCase().includes('api key')) {
+          msg = 'AI service not configured. Please add your GROQ_KEY to the backend .env file.'
+        } else if (raw.toLowerCase().includes('no candidates') || raw.toLowerCase().includes('not found')) {
+          msg = 'No candidates found for this award. Try adding more detail to the award description.'
+        } else {
+          msg = raw
+        }
+      } else if (Array.isArray(raw)) {
+        msg = raw.map(e => e.msg || String(e)).join(', ')
+      }
+      setAiError(msg)
     } finally { setAiLoading(false) }
   }
 
@@ -310,8 +330,10 @@ export default function ViewNominees() {
             <Brain className="w-5 h-5 text-white animate-pulse" />
           </div>
           <div className="flex-1">
-            <p className="font-bold text-[#0A1628] text-sm">Searching verified sources...</p>
-            <p className="text-[#6B7A8D] text-xs mt-0.5">Scanning business publications, rankings &amp; databases · Ranking with AI</p>
+            <p className="font-bold text-[#0A1628] text-sm">AI research engine running...</p>
+            <p className="text-[#6B7A8D] text-xs mt-0.5">
+              Classifying award → Generating candidates → Enriching from Wikipedia &amp; Forbes → Building dossiers
+            </p>
           </div>
           <Loader2 className="w-5 h-5 text-[#00338D] animate-spin flex-shrink-0" />
         </div>
@@ -371,11 +393,6 @@ export default function ViewNominees() {
                       {isApproved && (
                         <span className="flex items-center gap-1 px-2 py-0.5 bg-[#00338D] text-white text-xs font-semibold rounded-lg">
                           <CheckCircle className="w-3 h-3" /> Approved
-                        </span>
-                      )}
-                      {nom.ai_generated && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-[#7F3F98] to-[#0091DA] text-white text-xs font-semibold rounded-lg">
-                          <Sparkles className="w-3 h-3" /> AI
                         </span>
                       )}
                     </div>

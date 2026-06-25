@@ -1,0 +1,5 @@
+MONGODB_URL=mongodb+srv://srivastavayashi494_db_user:3Qn8IroXHzG5SYRe@ac-nm1gdhc.zgeokub.mongodb.net/awards_tool?retryWrites=true&w=majority
+DATABASE_NAME=award_tool
+SECRET_KEY=ertwyuiojhgvbnkjhgfdfghjkjhgfghj
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440  
