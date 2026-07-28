@@ -135,8 +135,17 @@ async def run_ai_search(
         )
 
     # ── Step 5: Save to nominees collection ───────────────────────────────────
+    # Delete existing AI-generated nominees for this award first (fresh search)
+    delete_result = await db.nominees.delete_many({
+        "award_id":    award_id,
+        "ai_generated": True,
+    })
+    if delete_result.deleted_count:
+        logger.info("[AISearch] Cleared %d old AI nominees", delete_result.deleted_count)
+
     saved_count = 0
-    for dossier in dossiers:
+    # Enforce exact count — save only up to num_nominees
+    for dossier in dossiers[:req.num_nominees]:
         nominee_doc = {
             # Core fields matching existing nominees schema
             "award_id":    award_id,

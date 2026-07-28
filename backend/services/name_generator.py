@@ -45,26 +45,40 @@ async def _generate_person_names(
     count: int,
     client: AsyncGroq,
 ) -> list[str]:
-    criteria_str = ", ".join(evaluation_criteria) if evaluation_criteria else "leadership, impact"
-    prompt = f"""You are a senior research analyst finding nominees for this award.
+    criteria_str = ", ".join(evaluation_criteria) if evaluation_criteria else "impact, excellence"
 
-Award: "{award_name}"
-Description: {award_description}
-Evaluation criteria: {criteria_str}
+    prompt = f"""You are a senior research analyst. Your job is to find nominees for this specific award.
 
-Generate exactly {count} REAL, verifiable individual people who fit this award.
+Award Name: "{award_name}"
+Award Description: {award_description}
+Evaluation Criteria: {criteria_str}
 
-Requirements:
-- Real humans with a Wikipedia page (verifiable)
-- Relevant to the award's sector and criteria
-- Currently active in 2025 (alive, not retired)
-- Diverse in geography and gender where possible
-- Indian business/industry figures preferred if award is India-focused
+READ THE AWARD NAME AND DESCRIPTION CAREFULLY.
+The award is specifically for: {award_name}
+Description says: {award_description}
 
-Return ONLY a JSON array of full names. No explanation, no numbering.
-Example: ["Mukesh Ambani", "Falguni Nayar", "Natarajan Chandrasekaran"]
+Generate exactly {count} REAL, verifiable people who EXACTLY fit what this award is about.
 
-Your response (JSON array only):"""
+CRITICAL RULES:
+1. Only suggest people who match the EXACT category of this award
+2. If the award is for "content creators" → suggest YouTubers, bloggers, influencers, social media creators
+3. If the award is for "business leaders" → suggest CEOs, founders, chairpersons
+4. If the award is for "entrepreneurs" → suggest startup founders
+5. If the award is for "scientists" → suggest scientists and researchers
+6. If the award is for "women leaders" → suggest women only
+7. If the award mentions a specific age (e.g. "under 30") → only suggest people of that age
+8. If the award mentions "India" or "Indian" → only suggest Indian people
+9. Do NOT default to generic business leaders if the award is about something else
+
+People must be:
+- Real, verifiable, with online presence (Wikipedia, social media, or news coverage)
+- Currently active in 2025
+- Genuinely relevant to "{award_name}"
+- MUST BE INDIAN — born in India OR of Indian origin and primarily known for work in India
+- Do NOT suggest people primarily based outside India (e.g. Sundar Pichai is Google CEO in USA — only include if award is specifically about global Indian diaspora)
+
+Return ONLY a JSON array of full names. No explanation.
+["Name 1", "Name 2", ...]"""
 
     try:
         resp = await client.chat.completions.create(
@@ -141,32 +155,32 @@ async def generate_candidate_names(
     Generates num_nominees × 3 as buffer (some will fail enrichment).
     """
     client  = groq_client or _groq_client()
-    buffer  = num_nominees * 3
+    buffer  = num_nominees  # generate exactly what's asked for
     results = []
 
     if entity_type == "person":
         names = await _generate_person_names(
-            award_name, award_description, evaluation_criteria, buffer, client
+            award_name, award_description, evaluation_criteria, num_nominees, client
         )
         results = [{"name": n, "entity_type": "person"} for n in names]
 
     elif entity_type == "company":
         names = await _generate_company_names(
-            award_name, award_description, evaluation_criteria, buffer, client
+            award_name, award_description, evaluation_criteria, num_nominees, client
         )
         results = [{"name": n, "entity_type": "company"} for n in names]
 
     else:  # "both" — split 50/50
-        half_persons   = (num_nominees + 1) // 2  # round up
+        half_persons   = (num_nominees + 1) // 2
         half_companies = num_nominees - half_persons
 
         person_names = await _generate_person_names(
             award_name, award_description, evaluation_criteria,
-            half_persons * 3, client,
+            half_persons, client,
         )
         company_names = await _generate_company_names(
             award_name, award_description, evaluation_criteria,
-            half_companies * 3, client,
+            half_companies, client,
         )
         results = (
             [{"name": n, "entity_type": "person"}  for n in person_names] +

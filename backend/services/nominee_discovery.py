@@ -134,21 +134,21 @@ async def tavily_search_candidates(queries: list[str]) -> list[str]:
     logger.info("[Tavily] Got %d result chunks from web", len(all_text_chunks))
 
     try:
-        prompt = f"""You are a research analyst. Read these real web search results and extract names of Indian business people.
+        prompt = f"""You are a research analyst. Read these real web search results about "{queries[0] if queries else 'this award'}" and extract the names of real people mentioned.
+
+Award context: {queries[0] if queries else ''}
 
 Web search results:
 {chr(10).join(all_text_chunks[:30])}
 
 Extract ONLY:
-- Real Indian or Indian-origin business leaders (CEOs, Founders, Chairpersons, MDs)
-- Living people currently active in business
-- People actually mentioned in the search results above
+- Real person names (first name + last name) who are relevant to this search
+- Living people currently active
+- Indian or Indian-origin people preferred
 
 DO NOT include:
 - Company names, brand names, or award names
-- Politicians, actors, sportspersons (unless also known as business leaders)
-- Non-Indian people (unless Indian-origin)
-- People not mentioned in the results
+- People clearly not relevant to this search context
 
 Return ONLY a JSON array of full names:
 ["Name One", "Name Two", ...]
@@ -323,27 +323,29 @@ Return ONLY JSON (no markdown):
 async def generate_search_queries(
     award_name: str, award_desc: str, query_spec: dict, num_nominees: int
 ) -> list[str]:
-    """Generate 5 targeted queries for DuckDuckGo based on award context."""
-    sectors = ", ".join(query_spec.get("likely_sectors", [])[:3]) or "business"
-    roles   = ", ".join(query_spec.get("likely_occupations", [])[:3]) or "CEO Chairman Founder"
-    year    = datetime.utcnow().year
+    """Generate 5 targeted queries based on the specific award — not generic business."""
+    year = datetime.utcnow().year
 
     try:
-        prompt = f"""Generate 5 web search queries to find the TOP Indian business leaders for:
-Award: "{award_name}"
-Description: {award_desc[:200]}
-Sectors: {sectors}
-Roles: {roles}
+        prompt = f"""Generate 5 specific web search queries to find nominees for this award.
+
+Award Name: "{award_name}"
+Award Description: {award_desc[:200]}
 Year: {year}
 
-Rules:
-- Each query must be India-specific
-- Target real ranked lists: Forbes India, Economic Times 500, Business Today, BW rankings
-- Include the current year ({year}) in at least 3 queries
-- Target exactly the type of person this award is for
+RULES:
+- Read the award name carefully and generate queries that find the RIGHT type of person
+- If the award is for "content creators" → search for YouTubers, influencers, bloggers
+- If the award is for "business leaders" → search for CEOs, founders
+- If the award is for "scientists" → search for scientists
+- If the award is for "athletes" → search for athletes
+- If award mentions "India/Indian" → India-specific queries
+- If award mentions a specific year → include that year
+- Do NOT default to generic business leader queries if the award is about something else
+- Include the current year {year} in queries
 
-Return ONLY a JSON array of 5 query strings. Example:
-["Forbes India richest businessmen 2025", "top Indian CEOs 2025 list", ...]"""
+Return ONLY a JSON array of 5 query strings. No explanation.
+["query 1", "query 2", "query 3", "query 4", "query 5"]"""
 
         resp = await _groq().chat.completions.create(
             model=MODEL, messages=[{"role": "user", "content": prompt}],
@@ -356,13 +358,13 @@ Return ONLY a JSON array of 5 query strings. Example:
     except Exception as exc:
         logger.warning("generate_search_queries: %s", exc)
 
-    # Fallback queries
+    # Fallback — use award name directly
     return [
-        f"Forbes India top business leaders {datetime.utcnow().year}",
-        f"Economic Times India top CEOs {datetime.utcnow().year}",
-        f"top Indian {sectors} executives {datetime.utcnow().year}",
-        f"India richest industrialists billionaires list {datetime.utcnow().year}",
-        f"Business Today most powerful Indians {datetime.utcnow().year}",
+        f"{award_name} India {year}",
+        f"top Indian {award_name} {year} list",
+        f"best {award_name} nominees India {year}",
+        f"{award_name} award winners India",
+        f"India {award_name} {year} ranking",
     ]
 
 
@@ -599,14 +601,11 @@ async def discover_candidates_from_web(
             f"India {core_theme} CEO chairman award 2025",
         ]
 
-    # Universal depth queries (always added)
-    sector_str = " ".join(sectors[:2]) if sectors else "business"
-    role_str   = " ".join(roles[:2]) if roles else "CEO Chairman"
+    # Universal depth queries — use award name directly, NOT hardcoded business queries
     search_queries += [
-        f"Indian {sector_str} {role_str} 2025",
-        f"India richest businessmen {sector_str} leaders 2025",
-        f"top Indian industrialist conglomerate {sector_str} leader",
-        f"Economic Times Forbes India {sector_str} business award 2025",
+        f"top Indian {award_name} {datetime.utcnow().year}",
+        f"India best {award_name} nominees list",
+        f"{award_name} India award winners {datetime.utcnow().year}",
     ]
 
     # Deduplicate and cap queries
@@ -708,13 +707,14 @@ async def _wiki_fetch(name: str, client: httpx.AsyncClient) -> dict | None:
 
 async def validate_with_wikipedia(names: list[str]) -> list[dict]:
     """
-    For each candidate name from DuckDuckGo:
+    For each candidate name:
       1. Fetch Wikipedia summary
-      2. Confirm they're a real business person
-      3. Return enriched candidate dicts — only verified people pass
+      2. Confirm they're a real, living person (not a company, place, or event)
+      3. Must be Indian or Indian-origin
+      4. Return enriched candidate dicts — only verified real Indian people pass
     """
     logger.info("Validating %d names via Wikipedia...", len(names))
-    semaphore = asyncio.Semaphore(10)  # max 10 concurrent Wikipedia requests
+    semaphore = asyncio.Semaphore(10)
 
     async def fetch_one(name: str, client: httpx.AsyncClient) -> dict | None:
         async with semaphore:
@@ -726,20 +726,72 @@ async def validate_with_wikipedia(names: list[str]) -> list[dict]:
             return_exceptions=True,
         )
 
+    # Patterns that mean this Wikipedia page is NOT a person
+    _NON_PERSON = [
+        "company", "corporation", "organisation", "organization",
+        "founded in", "established in", "headquartered",
+        "television series", "album", "song",
+        "city", "town", "village", "district",
+        "award ceremony", "trade fair",
+    ]
+
+    # Clearly non-Indian patterns — people based in foreign countries with no Indian connection
+    _NON_INDIAN = [
+        "american entrepreneur", "american business executive",
+        "american investor", "american singer", "american actress",
+        "american politician", "american athlete",
+        "british businessman", "british politician",
+        "chinese businessman", "japanese businessman",
+        "australian", "canadian politician",
+    ]
+
     validated = []
     for name, result in zip(names, results):
         if not isinstance(result, dict):
             continue
-        desc    = result.get("wiki_description", "")
-        extract = result.get("wiki_extract", "")
-        if _is_business_person(desc, extract) and _is_indian_or_unknown(desc, extract):
-            result["wikidata_id"] = f"web_{re.sub(r'[^a-z0-9]', '_', name.lower())}"
-            result["is_alive"]    = True
-            result["nationality"] = ["Indian"]
-            validated.append(result)
+        desc    = result.get("wiki_description", "").lower()
+        extract = result.get("wiki_extract", "").lower()
+        combined = f"{desc} {extract[:300]}"
 
-    logger.info("Wikipedia validation: %d / %d confirmed as business people",
-                len(validated), len(names))
+        # Skip non-person Wikipedia pages — check description only, not extract
+        # (extract mentions "company", "song" etc. about what the person does — that's fine)
+        if any(p in desc for p in _NON_PERSON):
+            continue
+
+        # Must have at least some content
+        if len(result.get("wiki_extract", "")) < 60:
+            continue
+
+        # Must be Indian or Indian-origin — mandatory filter
+        # Check description + first 800 chars of extract
+        full_combined = f"{desc} {result.get('wiki_extract', '')[:800]}".lower()
+
+        is_indian = (
+            "indian" in full_combined or
+            "india" in full_combined or
+            "mumbai" in full_combined or "delhi" in full_combined or
+            "bengaluru" in full_combined or "bangalore" in full_combined or
+            "chennai" in full_combined or "hyderabad" in full_combined or
+            "kolkata" in full_combined or "pune" in full_combined or
+            "ahmedabad" in full_combined or "gujarat" in full_combined or
+            "maharashtra" in full_combined or "karnataka" in full_combined or
+            "tamil" in full_combined or "kerala" in full_combined or
+            "bollywood" in full_combined or "iit " in full_combined or
+            "bharat" in full_combined or "rupee" in full_combined or
+            "crore" in full_combined or "reliance" in full_combined or
+            "infosys" in full_combined or "tata" in full_combined
+        )
+
+        if not is_indian:
+            logger.debug("Dropped non-Indian: %s | desc: %s", name, desc[:80])
+            continue
+
+        result["wikidata_id"] = f"web_{re.sub(r'[^a-z0-9]', '_', name.lower())}"
+        result["is_alive"]    = True
+        result["nationality"] = ["Indian"]
+        validated.append(result)
+
+    logger.info("Wikipedia validation: %d / %d passed (Indian filter applied)", len(validated), len(names))
     return validated
 
 
@@ -850,14 +902,17 @@ async def rank_with_llm(
 Award: {award_desc[:250]}
 Evaluation themes: {themes}
 
-All candidates below are VERIFIED real Indian business people.
-Select and rank the TOP {target_count} most relevant to this specific award.
+All candidates below are VERIFIED real people relevant to this award.
+Select and rank the TOP {target_count} most relevant to this SPECIFIC award category.
 
 RULES:
 1. Only use names/IDs already in the list — never invent new ones.
 2. Write a specific 2-sentence rationale using facts from their bio.
-3. Rank by fit to the award themes, not general fame.
+3. Rank by fit to "{award_name}" specifically — not by general fame or wealth.
 4. criteria_match_score: 0.0-1.0 based on how well they match this specific award.
+5. If this award is for content creators, rank content creators highest.
+6. If this award is for scientists, rank scientists highest.
+7. Match the award category exactly.
 
 Candidates:
 {json.dumps(briefs, indent=2)}
