@@ -360,6 +360,15 @@ async def ai_search_nominees(req: AISearchRequest, user=Depends(get_current_user
             detail=f"AI search failed: {str(exc)}"
         )
 
+    # AIMA organization-focused categories short-circuit before any search —
+    # return that status as-is rather than treating it as a missing-candidates error.
+    if result.get("status") == "organization_category":
+        await log_action(db, user, "ai_search_nominees_organization_category", {
+            "award_id": req.award_id,
+            "category": result.get("category"),
+        })
+        return result
+
     if not result["candidates"]:
         diagnostic = result.get("research_metadata", {}).get("diagnostic") or \
             "No verifiable candidates found. Try a more specific award description."

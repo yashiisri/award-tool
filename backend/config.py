@@ -34,6 +34,21 @@ class Settings(BaseSettings):
     WEIGHT_SOURCE_QUALITY: float = 0.10
     WEIGHT_RECENCY: float = 0.10
 
+    # AIMA-specialized engine tuning
+    AIMA_STAGE1_DISCOVERY_TARGET: int = 80   # raw mentions targeted before dedup, per spec §8
+    AIMA_STAGE2_VERIFY_LIMIT: int = 25
+    AIMA_STAGE3_DEEP_LIMIT: int = 10
+    AIMA_FINAL_RESULTS: int = 8
+
+    # AIMA scoring weights — must sum to 1.0 (spec §15)
+    AIMA_WEIGHT_AWARD_ELIGIBILITY: float = 0.25
+    AIMA_WEIGHT_HISTORICAL_FIT: float = 0.20
+    AIMA_WEIGHT_LEADERSHIP_IMPACT: float = 0.15
+    AIMA_WEIGHT_ACHIEVEMENT_STRENGTH: float = 0.15
+    AIMA_WEIGHT_EVIDENCE_STRENGTH: float = 0.10
+    AIMA_WEIGHT_SOURCE_QUALITY: float = 0.10
+    AIMA_WEIGHT_RECENCY: float = 0.05
+
     model_config = {
         "env_file": str(ENV_FILE),
         "env_file_encoding": "utf-8",

@@ -48,6 +48,8 @@ const SCORE_LABELS = {
   award_relevance: 'Award relevance', leadership_impact: 'Leadership impact',
   industry_relevance: 'Industry relevance', achievement_strength: 'Achievement strength',
   source_quality: 'Source quality', recency: 'Recency',
+  award_eligibility: 'Award eligibility', historical_category_fit: 'Historical fit',
+  evidence_strength: 'Evidence strength',
 }
 
 function hostname(url) {
@@ -188,6 +190,12 @@ function AIResultsModal({ results, metadata, onConfirm, onClose, saving }) {
 
                 {isExpanded && (
                   <div className="px-4 pb-4 pt-0 border-t border-gray-100 mt-1" onClick={e => e.stopPropagation()}>
+                    {typeof nom.final_score === 'number' && (
+                      <div className="flex items-center gap-2 mt-3 mb-1">
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">AIMA category fit</span>
+                        <span className="text-sm font-black text-[#00338D]">{nom.final_score}/100</span>
+                      </div>
+                    )}
                     {nom.scores && (
                       <div className="grid grid-cols-3 gap-2 my-3">
                         {Object.entries(nom.scores).map(([key, val]) => (
@@ -196,6 +204,15 @@ function AIResultsModal({ results, metadata, onConfirm, onClose, saving }) {
                             <div className="text-sm font-bold text-[#0A1628]">{Math.round(val * 100)}%</div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                    {nom.historical_comparison && (
+                      <div className="mb-3 p-3 bg-[#F5EEF8] border border-[#7F3F98]/15 rounded-lg">
+                        <div className="text-[10px] font-bold text-[#7F3F98] uppercase tracking-wide mb-1">Historical fit</div>
+                        <p className="text-xs text-gray-600 leading-relaxed">{nom.historical_comparison}</p>
+                        {nom.similar_previous_winners?.length > 0 && (
+                          <p className="text-[11px] text-gray-400 mt-1.5">Compared against: {nom.similar_previous_winners.join(', ')}</p>
+                        )}
                       </div>
                     )}
                     <EvidenceList evidence={nom.evidence} />
@@ -240,6 +257,7 @@ export default function ViewNominees() {
   const [aiMetadata, setAiMetadata] = useState(null)
   const [aiSaving, setAiSaving] = useState(false)
   const [aiError, setAiError] = useState('')
+  const [aiOrgCategoryMessage, setAiOrgCategoryMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState({}) // { nomineeId: 'validate'|'flag'|'unflag'|'delete' }
 
@@ -305,13 +323,17 @@ export default function ViewNominees() {
 
   const handleAISearch = async () => {
     if (!selectedAward) return
-    setAiLoading(true); setAiError('')
+    setAiLoading(true); setAiError(''); setAiOrgCategoryMessage('')
     try {
       const award = awards.find(a => a.id === selectedAward)
       const { data } = await api.post('/admin/ai-search-nominees', {
         award_id: selectedAward,
         num_results: award?.num_nominees || 5,
       })
+      if (data.status === 'organization_category') {
+        setAiOrgCategoryMessage(data.message || 'This AIMA category is organization-focused and is excluded from person nominee research.')
+        return
+      }
       setAiResults(data.candidates)
       setAiMetadata(data.research_metadata || null)
     } catch (err) {
@@ -422,6 +444,18 @@ export default function ViewNominees() {
             <p className="text-[#6B7A8D] text-xs mt-0.5">Scanning business publications, rankings &amp; databases · Ranking with AI</p>
           </div>
           <Loader2 className="w-5 h-5 text-[#00338D] animate-spin flex-shrink-0" />
+        </div>
+      )}
+
+      {/* AIMA organization-focused category — not an error, just out of scope for person research */}
+      {aiOrgCategoryMessage && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+          <Building2 className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-amber-800 text-sm">Organization-Focused Category</p>
+            <p className="text-amber-700 text-xs mt-0.5">{aiOrgCategoryMessage}</p>
+          </div>
+          <button onClick={() => setAiOrgCategoryMessage('')} className="text-amber-400 hover:text-amber-600"><X className="w-4 h-4" /></button>
         </div>
       )}
 
