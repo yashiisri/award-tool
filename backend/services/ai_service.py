@@ -1,13 +1,15 @@
 """
 ai_service.py
 ─────────────
-Groq Llama-3.3-70b-versatile wrapper.
+Groq LLM wrapper. Used ONLY for structuring an award's own text into research
+criteria and writing an evidence-grounded rationale — never to originate a
+candidate's identity (see services/research/ for the evidence-based pipeline).
 
 Functions:
-  extract_award_metrics()    – award description  → evaluation metrics list
-  generate_candidate_names() – award + metrics    → real high-profile names (PRIMARY source)
-  generate_search_queries()  – award + metrics    → DuckDuckGo query strings (supplementary)
-  rank_candidates()          – candidates + metrics → scored & sorted list
+  extract_award_metrics()      – award description → evaluation metrics list
+  extract_research_criteria()  – award text → structured research criteria
+  expand_industry_terms()      – industry keyword → related terminology
+  generate_grounded_rationale()– evidence snippets → one grounded rationale sentence
 """
 
 import json
@@ -20,7 +22,10 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-MODEL = "llama-3.3-70b-versatile"
+# Groq's model lineup changes over time — this was last verified against the
+# account's available models via GET /openai/v1/models. If this starts 404ing,
+# check that endpoint for a current large general-purpose chat model.
+MODEL = "openai/gpt-oss-120b"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -71,6 +76,7 @@ Example: ["revenue growth", "market influence", "innovation"]"""
 
     resp = await client.chat.completions.create(
         model=MODEL,
+        reasoning_effort="low",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
         max_tokens=512,
@@ -90,203 +96,140 @@ Example: ["revenue growth", "market influence", "innovation"]"""
     ]
 
 
-async def generate_candidate_names(
-    award_title: str,
-    metrics: list[str],
-    num_candidates: int = 20,
-) -> list[dict]:
+async def extract_research_criteria(award_title: str, award_description: str) -> dict:
     """
-    Generate contextually correct candidate names.
-    Respects ALL constraints in the award title/metrics:
-    age limits, gender, sector, geography, etc.
+    Structure an award's free-text title/description into research criteria.
+
+    This NEVER invents candidate identities — it only extracts constraints
+    that are already present in the award's own text, used later to build
+    search queries and score evidence. Falls back to a permissive default
+    (no constraints beyond the raw title as a keyword) if the LLM call fails.
     """
-    client = _get_client()
-    metrics_str = ", ".join(metrics)
-
-    prompt = f"""You are a senior research analyst finding nominees for this award:
-"{award_title}"
-
-Evaluation metrics / criteria: {metrics_str}
-
-CRITICAL: Read the award title and criteria carefully for ANY constraints:
-- Age constraints (e.g. "under 30", "below 35", "young") → ONLY list people who meet that age
-- Gender constraints (e.g. "women", "female") → ONLY list women
-- Sector constraints (e.g. "tech", "healthcare", "fintech") → ONLY list people from that sector
-- Geography (default: India unless stated otherwise)
-
-List {num_candidates} REAL, verifiable Indian people who STRICTLY match ALL constraints above.
-
-For "under 30" or "young entrepreneur" awards, examples of the RIGHT calibre:
-Kaivalya Vohra (Zepto), Aadit Palicha (Zepto), Ritesh Agarwal (OYO),
-Divya Gokulnath (BYJU'S), Rehan Yar Khan (Orios), Nikhil Kamath (Zerodha)
-
-For general business leadership awards, examples:
-Mukesh Ambani, Ratan Tata, Kiran Mazumdar-Shaw, Deepinder Goyal, Falguni Nayar
-
-Return ONLY a JSON array. No explanation.
-[
-  {{"name": "Full Name", "role": "Founder/CEO/etc.", "organization": "Company Name"}},
-  ...
-]"""
-
-    resp = await client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
-        max_tokens=2048,
-    )
-    raw = resp.choices[0].message.content.strip()
+    default = {
+        "industry": "", "geography": "Global", "leadership_requirements": "",
+        "company_size": "", "achievement_requirements": "", "time_period": "",
+        "keywords": [award_title], "exclusions": [],
+    }
     try:
-        result = _extract_json(raw)
-        if isinstance(result, list):
-            cleaned = []
-            for item in result:
-                if not isinstance(item, dict):
-                    continue
-                name = str(item.get("name", "")).strip()
-                role = str(item.get("role", "Business Leader")).strip()
-                org  = str(item.get("organization", "")).strip()
-                if name and len(name.split()) >= 2:
-                    cleaned.append({"name": name, "role": role, "organization": org})
-            logger.info("generate_candidate_names → %d names", len(cleaned))
-            return cleaned
-    except (ValueError, TypeError) as exc:
-        logger.warning("generate_candidate_names parse failed: %s | raw=%s", exc, raw[:300])
+        client = _get_client()
+    except RuntimeError:
+        return default
 
-    return []
+    prompt = f"""Extract structured research criteria from this award. Only use information
+present in the text below — do not invent constraints that aren't stated or implied.
 
+Award Title: {award_title}
+Award Description: {award_description}
 
-async def generate_search_queries(
-    award_title: str,
-    metrics: list[str],
-    num_queries: int = 6,
-) -> list[str]:
-    """
-    SUPPLEMENTARY source.
-    Generate DuckDuckGo search queries to discover additional candidates
-    beyond what Llama already knows.
-    """
-    client = _get_client()
-    metrics_str = ", ".join(metrics)
-
-    prompt = f"""Generate {num_queries} web search queries to find high-profile INDIAN \
-business leaders for the award "{award_title}" (metrics: {metrics_str}).
-
-Every query MUST be India-specific. Target:
-- Forbes India billionaires and industrialists
-- CEOs / Chairpersons of NSE/BSE-listed major Indian companies
-- Founders of Indian unicorn startups
-- India-based conglomerate heads and corporate leaders
-- Recipients of Padma Bhushan / Padma Vibhushan for business
-
-Return ONLY a JSON array of query strings. No explanation, no markdown.
-Example: ["Forbes India billionaires 2024 CEO", "top Indian chairpersons conglomerate NSE listed"]"""
+Return ONLY a JSON object with these exact keys:
+{{
+  "industry": "e.g. Technology, Healthcare, Finance (empty string if not specified)",
+  "geography": "e.g. India, United States, Europe, Global (default 'Global' if not specified)",
+  "leadership_requirements": "e.g. CEO, Founder, Chairperson (empty string if not specified)",
+  "company_size": "e.g. large enterprise, startup, unicorn (empty string if not specified)",
+  "achievement_requirements": "short phrase on what achievement qualifies (empty string if generic)",
+  "time_period": "e.g. 'last 2 years', 'career' (empty string if not specified)",
+  "keywords": ["3-6 short keyword phrases capturing the award's focus"],
+  "exclusions": ["anything explicitly excluded, empty array if none"]
+}}
+No explanation, no markdown fences."""
 
     resp = await client.chat.completions.create(
         model=MODEL,
+        reasoning_effort="low",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
+        temperature=0.1,
         max_tokens=512,
     )
     raw = resp.choices[0].message.content.strip()
     try:
         result = _extract_json(raw)
-        if isinstance(result, list):
-            return [str(q).strip() for q in result if q][:num_queries]
+        if isinstance(result, dict):
+            merged = {**default, **{k: v for k, v in result.items() if k in default and v}}
+            if not merged.get("keywords"):
+                merged["keywords"] = [award_title]
+            return merged
     except (ValueError, TypeError) as exc:
-        logger.warning("generate_search_queries parse failed: %s | raw=%s", exc, raw[:200])
+        logger.warning("extract_research_criteria parse failed: %s | raw=%s", exc, raw[:300])
 
-    return [
-        f"Forbes India billionaires {award_title} 2024",
-        f"top Indian CEOs {metrics[0] if metrics else 'leadership'} NSE BSE listed",
-        "India conglomerate chairman industrialist Forbes list",
-        "Indian unicorn founders billionaires Padma award business",
-        "top Indian business leaders Economic Times Forbes 2024",
-        "India CEO chairman major company publicly listed",
-    ]
+    return default
 
 
-async def rank_candidates(
-    candidates: list[dict],
-    award_title: str,
-    metrics: list[str],
-) -> list[dict]:
+async def expand_industry_terms(industry: str) -> list[str]:
     """
-    Score and rank candidates against the award metrics using Llama 3.3.
-
-    Populates confidence_score (0.0-1.0) and relevance_reason on each dict.
-    Returns the list sorted descending by confidence_score.
+    Expand a single industry keyword into related terminology for broader
+    query coverage (spec §13), e.g. "Technology" -> ["software", "IT", "AI", ...].
+    Best-effort: falls back to just the original term on any failure.
     """
-    if not candidates:
+    if not industry:
         return []
-
-    client = _get_client()
-    metrics_str = ", ".join(metrics)
-
-    candidate_list = [
-        {
-            "index":        i,
-            "name":         c.get("name", ""),
-            "role":         c.get("role", ""),
-            "organization": c.get("organization", ""),
-            "summary":      (c.get("wikipedia_summary") or "")[:400],
-        }
-        for i, c in enumerate(candidates)
-    ]
-
-    prompt = f"""You are an expert awards jury analyst scoring INDIAN business leader nominees for:
-"{award_title}"
-
-Evaluation metrics: {metrics_str}
-
-Candidates:
-{json.dumps(candidate_list, indent=2)}
-
-For EACH candidate assign:
-1. confidence_score: float 0.0-1.0
-   0.85-1.0  = exceptional (Indian billionaire, major conglomerate head, globally recognised Indian leader)
-   0.65-0.84 = strong (CEO/Chairman of major NSE/BSE-listed Indian company, Indian unicorn founder)
-   0.40-0.64 = moderate (recognised Indian industry leader, Padma award recipient for business)
-   0.0       = non-Indian or unverifiable — assign 0.0 immediately, no exceptions
-2. relevance_reason: one sentence explaining their fit to this award
-
-CRITICAL RULE: This award is exclusively for Indian business leaders.
-Score any non-Indian candidate 0.0 regardless of their global stature.
-
-Return ONLY a JSON array. No explanation, no markdown fences.
-Format:
-[{{"index": 0, "confidence_score": 0.92, "relevance_reason": "..."}}, ...]"""
-
-    resp = await client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,
-        max_tokens=2048,
-    )
-    raw = resp.choices[0].message.content.strip()
     try:
-        rankings = _extract_json(raw)
-        if isinstance(rankings, list):
-            score_map = {
-                r["index"]: {
-                    "confidence_score": float(r.get("confidence_score", 0.5)),
-                    "relevance_reason": str(r.get("relevance_reason", "")),
-                }
-                for r in rankings
-                if isinstance(r, dict) and "index" in r
-            }
-            for i, c in enumerate(candidates):
-                if i in score_map:
-                    c["confidence_score"] = score_map[i]["confidence_score"]
-                    c["relevance_reason"]  = score_map[i]["relevance_reason"]
-                else:
-                    c.setdefault("confidence_score", 0.5)
-                    c.setdefault("relevance_reason",  "Recognised business leader")
-    except (ValueError, TypeError, KeyError) as exc:
-        logger.warning("rank_candidates parse failed: %s | raw=%s", exc, raw[:300])
-        for c in candidates:
-            c.setdefault("confidence_score", 0.6)
-            c.setdefault("relevance_reason",  "Recognised business leader")
+        client = _get_client()
+    except RuntimeError:
+        return [industry]
 
-    candidates.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
-    return candidates
+    prompt = f"""List 5-8 closely related industry/sector terms for "{industry}" that could
+appear in news coverage of business leaders in this space. Return ONLY a JSON array of
+short strings, no explanation. Example for "Technology": ["software", "IT services", "AI",
+"cloud computing", "cybersecurity", "SaaS", "digital transformation"]"""
+
+    try:
+        resp = await client.chat.completions.create(
+            model=MODEL,
+            reasoning_effort="low",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=256,
+        )
+        raw = resp.choices[0].message.content.strip()
+        result = _extract_json(raw)
+        if isinstance(result, list):
+            return [str(t).strip() for t in result if t][:8] or [industry]
+    except Exception as exc:
+        logger.warning("expand_industry_terms failed for '%s': %s", industry, exc)
+
+    return [industry]
+
+
+async def generate_grounded_rationale(
+    candidate_name: str,
+    designation: str,
+    organization: str,
+    evidence_texts: list[str],
+) -> str:
+    """
+    Best-effort: write a one/two-sentence rationale grounded ONLY in the
+    supplied evidence snippets. Never invents facts not present in the
+    evidence. On any failure, callers fall back to a deterministic
+    template built directly from the evidence (see ranking_service.py).
+    """
+    if not evidence_texts:
+        return ""
+    try:
+        client = _get_client()
+    except RuntimeError:
+        return ""
+
+    joined = "\n".join(f"- {t[:300]}" for t in evidence_texts[:5])
+    prompt = f"""Using ONLY the evidence below, write one or two sentences explaining why
+{candidate_name} ({designation} at {organization}) qualifies for this award. Do not add any
+fact that is not supported by the evidence. If the evidence is too thin to explain fit,
+say so plainly instead of inventing detail.
+
+Evidence:
+{joined}
+
+Return ONLY the sentence(s), no preamble, no markdown."""
+
+    try:
+        resp = await client.chat.completions.create(
+            model=MODEL,
+            reasoning_effort="low",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=200,
+        )
+        return resp.choices[0].message.content.strip().strip('"')
+    except Exception as exc:
+        logger.warning("generate_grounded_rationale failed for '%s': %s", candidate_name, exc)
+        return ""

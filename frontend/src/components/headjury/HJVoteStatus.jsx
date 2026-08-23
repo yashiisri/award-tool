@@ -63,18 +63,20 @@ export default function HJVoteStatus() {
     })
   })
 
-  // Aggregate: total points per nominee across all jury members (for selected award)
-  const nomineePoints = filtered.reduce((acc, r) => {
+  // Aggregate: raw vote tally per nominee (1st-choice / 2nd-choice counts) —
+  // no point weighting is computed or shown here, only how many jurors picked
+  // each nominee for each slot.
+  const nomineeTally = filtered.reduce((acc, r) => {
     const key = r.nominee_id
-    if (!acc[key]) acc[key] = { name: r.nominee_name, org: r.nominee_org, points: 0, votes: 0 }
-    acc[key].points += r.points
-    acc[key].votes += 1
+    if (!acc[key]) acc[key] = { name: r.nominee_name, org: r.nominee_org, first: 0, second: 0 }
+    if (r.rank === 1) acc[key].first += 1
+    else if (r.rank === 2) acc[key].second += 1
     return acc
   }, {})
-  const leaderboard = Object.values(nomineePoints).sort((a, b) => b.points - a.points)
+  const leaderboard = Object.values(nomineeTally).sort((a, b) => (b.first - a.first) || (b.second - a.second))
 
   const totalJurors = Object.keys(byJury).length
-  const totalPoints = filtered.reduce((s, r) => s + r.points, 0)
+  const nomineesInContention = Object.keys(nomineeTally).length
 
   return (
     <div className="p-8">
@@ -108,9 +110,9 @@ export default function HJVoteStatus() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: 'Total Rankings',      value: filtered.length,  color: '#7F3F98' },
-          { label: 'Jury Members Ranked', value: totalJurors,       color: '#0091DA' },
-          { label: 'Total Points Given',  value: totalPoints,       color: '#00338D' },
+          { label: 'Total Rankings',       value: filtered.length,        color: '#7F3F98' },
+          { label: 'Jury Members Ranked',  value: totalJurors,             color: '#0091DA' },
+          { label: 'Nominees in Contention', value: nomineesInContention, color: '#00338D' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
             <div className="text-2xl font-black mb-1" style={{ color }}>{value}</div>
@@ -133,7 +135,7 @@ export default function HJVoteStatus() {
               <div className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-[#7F3F98]/5 to-[#0091DA]/5 border-b border-gray-100">
                 <Trophy className="w-5 h-5 text-[#7F3F98]" />
                 <span className="font-black text-[#1a1a2e] text-sm">Aggregate Leaderboard</span>
-                <span className="text-gray-400 text-xs ml-1">· combined jury points</span>
+                <span className="text-gray-400 text-xs ml-1">· raw vote tally, not weighted scoring</span>
               </div>
               <div className="divide-y divide-gray-50">
                 {leaderboard.map((nom, i) => (
@@ -147,17 +149,17 @@ export default function HJVoteStatus() {
                         <Building2 className="w-3 h-3" />{nom.org}
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-black text-[#7F3F98] text-base">{nom.points}</div>
-                      <div className="text-gray-400 text-xs">{nom.votes} vote{nom.votes !== 1 ? 's' : ''}</div>
-                    </div>
-                    <div className="w-20 flex-shrink-0">
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-[#7F3F98] to-[#0091DA] rounded-full transition-all"
-                          style={{ width: `${(nom.points / (leaderboard[0]?.points || 1)) * 100}%` }}
-                        />
-                      </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {nom.first > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded-lg text-xs font-bold text-amber-700">
+                          🥇 ×{nom.first}
+                        </span>
+                      )}
+                      {nom.second > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-600">
+                          🥈 ×{nom.second}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -190,17 +192,12 @@ export default function HJVoteStatus() {
                     )}
                     <div className="divide-y divide-gray-50">
                       {aw.entries.map(entry => (
-                        <div key={entry.nominee_id} className="flex items-center justify-between px-6 py-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <RankBadge rank={entry.rank} />
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-gray-700 truncate">{entry.nominee_name}</div>
-                              <div className="text-xs text-gray-400 truncate">{entry.nominee_org}</div>
-                            </div>
+                        <div key={entry.nominee_id} className="flex items-center gap-3 px-6 py-3">
+                          <RankBadge rank={entry.rank} />
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-gray-700 truncate">{entry.nominee_name}</div>
+                            <div className="text-xs text-gray-400 truncate">{entry.nominee_org}</div>
                           </div>
-                          <span className="font-black text-[#7F3F98] text-sm flex-shrink-0 ml-3">
-                            {entry.points} pts
-                          </span>
                         </div>
                       ))}
                     </div>

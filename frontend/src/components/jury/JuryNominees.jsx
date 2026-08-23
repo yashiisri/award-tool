@@ -7,6 +7,7 @@ import {
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 import NomineeProfileCard from '../admin/NomineeProfileCard'
+import Avatar from '../common/Avatar'
 
 export default function JuryNominees() {
   const [searchParams] = useSearchParams()
@@ -106,110 +107,76 @@ export default function JuryNominees() {
           <p className="text-gray-400 text-xs mt-1">Nominees are added and approved by the administrator.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {nominees.map(nom => {
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {nominees.map((nom, i) => {
             const isValidated = nom.validated
             const isFlagged   = nom.red_flagged
 
             return (
               <div
                 key={nom.id}
-                className={`
-                  group relative bg-white rounded-2xl overflow-hidden
-                  border transition-all duration-300 ease-out
-                  hover:-translate-y-1 hover:shadow-xl hover:shadow-[#0091DA]/8
-                  ${isFlagged
-                    ? 'border-red-200 hover:border-red-300'
-                    : 'border-gray-100 hover:border-[#0091DA]/20'}
-                `}
+                className={`group hover-lift animate-fade-in-up bg-white border rounded-2xl overflow-hidden transition-all ${
+                  isFlagged ? 'border-red-200' : isValidated ? 'border-green-200' : 'border-gray-100 hover:border-[#0091DA]/20 hover:shadow-lg hover:shadow-[#0091DA]/5'
+                }`}
+                style={{ animationDelay: `${i * 40}ms` }}
               >
-                {/* Avatar banner */}
-                <div
-                  className="relative h-44 cursor-pointer overflow-hidden"
-                  onClick={() => setSelectedNominee(nom)}
-                >
-                  <div className={`absolute inset-0 transition-transform duration-500 group-hover:scale-105
-                    ${isFlagged
-                      ? 'bg-gradient-to-br from-red-50 to-red-100'
-                      : 'bg-gradient-to-br from-[#EAF5FC] via-[#dce8f5] to-[#c8dff0]'}`}
-                  />
-
-                  {nom.photo_url ? (
-                    <img
-                      src={nom.photo_url}
-                      alt={nom.name}
-                      className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
-                      onError={e => { e.target.style.display = 'none' }}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className={`
-                        w-16 h-16 rounded-2xl flex items-center justify-center
-                        shadow-lg transition-transform duration-300 group-hover:scale-110
-                        ${isFlagged ? 'bg-red-400' : 'bg-gradient-to-br from-[#0091DA] to-[#00338D]'}
-                      `}>
-                        <span className="text-white text-2xl font-black">{nom.name?.[0]}</span>
+                <div className="p-4 pb-0">
+                  {/* Status badges */}
+                  {(isValidated || isFlagged) && (
+                    <div className="flex items-center justify-between gap-1 mb-3">
+                      <div className="flex gap-1">
+                        {isValidated && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-[#EAF5FC] text-[#0091DA] text-[11px] font-semibold rounded-lg">
+                            <CheckCircle className="w-3 h-3" /> Approved
+                          </span>
+                        )}
                       </div>
+                      {isFlagged && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 text-[11px] font-semibold rounded-lg border border-red-100">
+                          <AlertTriangle className="w-3 h-3" /> Flagged
+                        </span>
+                      )}
                     </div>
                   )}
 
-                  {/* Status badges */}
-                  <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
-                    {isValidated && (
-                      <span className="flex items-center gap-1 px-2.5 py-1 bg-[#00338D] text-white text-xs font-semibold rounded-lg shadow-sm">
-                        <CheckCircle className="w-3 h-3" /> Approved
-                      </span>
-                    )}
-                    {isFlagged && (
-                      <span className="flex items-center gap-1 px-2.5 py-1 bg-red-500 text-white text-xs font-semibold rounded-lg shadow-sm ml-auto">
-                        <AlertTriangle className="w-3 h-3" /> Flagged
-                      </span>
-                    )}
+                  {/* Avatar + identity */}
+                  <div className="flex items-start gap-3 cursor-pointer" onClick={() => setSelectedNominee(nom)}>
+                    <Avatar name={nom.name} photoUrl={nom.photo_url} size={56} />
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <h3 className="font-bold text-[#0A1628] text-sm leading-snug hover:text-[#0091DA] transition-colors line-clamp-1">
+                        {nom.name}
+                      </h3>
+                      <div className="flex items-center gap-1.5 text-gray-400 text-xs mt-1">
+                        <Briefcase className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{nom.designation}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-gray-400 text-xs mt-0.5">
+                        <Building2 className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{nom.organisation}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Card body */}
-                <div className="px-5 pt-4 pb-5">
-                  <h3
-                    className="font-bold text-[#0A1628] text-sm leading-snug mb-1 cursor-pointer hover:text-[#0091DA] transition-colors duration-200 line-clamp-1"
-                    onClick={() => setSelectedNominee(nom)}
-                  >
-                    {nom.name}
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5">
-                    <Briefcase className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{nom.designation}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-5">
-                    <Building2 className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{nom.organisation}</span>
-                  </div>
-
-                  {/* Action buttons — comment & flag only */}
-                  <div className="flex gap-2">
+                {/* Action buttons — comment & flag only */}
+                <div className="p-4">
+                  <div className="flex gap-2 pt-3 border-t border-gray-50">
                     <button
                       onClick={() => setCommentModal(nom.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#EAF5FC] text-[#0091DA] border border-[#0091DA]/20 rounded-xl text-xs font-semibold hover:bg-[#0091DA] hover:text-white hover:border-[#0091DA] hover:shadow-md hover:shadow-[#0091DA]/20 transition-all duration-200 active:scale-95"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-[#0091DA] bg-[#EAF5FC] border border-[#0091DA]/20 rounded-lg hover:bg-[#0091DA] hover:text-white hover:border-[#0091DA] transition-all"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
                       Add Comment
                     </button>
                     <button
                       onClick={() => setFlagModal(nom.id)}
-                      className="w-10 h-10 flex items-center justify-center bg-orange-50 text-orange-400 border border-orange-200 rounded-xl hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all duration-200 active:scale-95"
+                      className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-orange-500 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all"
                       title="Flag nominee"
                     >
                       <Flag className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-
-                {/* Bottom accent line */}
-                <div className={`
-                  absolute bottom-0 inset-x-0 h-0.5 scale-x-0 group-hover:scale-x-100
-                  transition-transform duration-300 origin-left
-                  ${isFlagged ? 'bg-red-400' : 'bg-gradient-to-r from-[#0091DA] to-[#00338D]'}
-                `} />
               </div>
             )
           })}

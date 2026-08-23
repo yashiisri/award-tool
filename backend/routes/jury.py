@@ -40,10 +40,13 @@ class RankVoteRequest(BaseModel):
     nominee_id: str
     rank: int  # 1-5
 
+# Jury/head jury only ever pick a 1st and 2nd choice — points are a server-side
+# scoring detail never exposed to (or trusted from) the client.
+RANKING_POINTS = {1: 10, 2: 5}
+
 class RankingEntry(BaseModel):
     nominee_id: str
-    rank: int
-    points: int
+    rank: int  # 1 or 2 only
 
 class SubmitRankingRequest(BaseModel):
     award_id: str
@@ -148,13 +151,22 @@ async def get_vote_control(award_id: str, user=Depends(get_current_user)):
 
 @router.get("/results/{award_id}")
 async def get_results(award_id: str, user=Depends(get_current_user)):
+    if user["role"] not in ["jury", "head_jury"]:
+        raise HTTPException(status_code=403)
     db = get_database()
     # Check if results are published
     award = await db.awards.find_one({"_id": ObjectId(award_id)})
     if not award or not award.get("results_published"):
         raise HTTPException(status_code=403, detail="Results not published yet")
     nominees = await db.nominees.find({"award_id": award_id}).sort("total_score", -1).to_list(100)
-    return [serialize(n) for n in nominees]
+    # Rank order comes from total_score, but the score itself is an internal
+    # scoring detail — jury/head jury see final placement, not points.
+    results = []
+    for n in nominees:
+        doc = serialize(n)
+        doc.pop("total_score", None)
+        results.append(doc)
+    return results
 
 @router.get("/nominees/{award_id}")
 async def get_nominees_legacy(award_id: str, user=Depends(get_current_user)):
@@ -168,12 +180,27 @@ async def get_nominees_legacy(award_id: str, user=Depends(get_current_user)):
 @router.post("/ranking")
 async def submit_ranking(req: SubmitRankingRequest, user=Depends(get_current_user)):
     """
-    Jury submits their ordered ranking for an award.
-    Each nominee gets a rank (1 = best) and points based on position.
-    Replaces any previous ranking by this jury member for this award.
+    Jury submits their top choices for an award: at most a 1st and a 2nd
+    pick, each naming a distinct nominee. Points are computed here from
+    RANKING_POINTS and are never accepted from the client — a juror's own
+    request is not a trustworthy source for how many points their pick is
+    worth. Replaces any previous ranking by this jury member for this award.
     """
     if user["role"] not in ["jury", "head_jury"]:
         raise HTTPException(status_code=403, detail="Only jury members can submit rankings")
+
+    if len(req.rankings) > 2:
+        raise HTTPException(status_code=400, detail="You may only rank a 1st and 2nd choice")
+
+    ranks_used = [entry.rank for entry in req.rankings]
+    if any(r not in RANKING_POINTS for r in ranks_used):
+        raise HTTPException(status_code=400, detail="Rank must be 1 (1st choice) or 2 (2nd choice)")
+    if len(set(ranks_used)) != len(ranks_used):
+        raise HTTPException(status_code=400, detail="You cannot assign the same rank to two nominees")
+
+    nominee_ids_used = [entry.nominee_id for entry in req.rankings]
+    if len(set(nominee_ids_used)) != len(nominee_ids_used):
+        raise HTTPException(status_code=400, detail="You cannot rank the same nominee twice")
 
     db = get_database()
 
@@ -202,7 +229,7 @@ async def submit_ranking(req: SubmitRankingRequest, user=Depends(get_current_use
     # Delete old ranking records
     await db.jury_rankings.delete_many({"award_id": req.award_id, "jury_id": jury_id})
 
-    # Insert new rankings
+    # Insert new rankings — points computed server-side from rank, never from the client
     now = datetime.utcnow()
     docs = []
     for entry in req.rankings:
@@ -212,7 +239,7 @@ async def submit_ranking(req: SubmitRankingRequest, user=Depends(get_current_use
             "jury_id":     jury_id,
             "jury_role":   user["role"],
             "rank":        entry.rank,
-            "points":      entry.points,
+            "points":      RANKING_POINTS[entry.rank],
             "created_at":  now,
         })
 
@@ -224,7 +251,7 @@ async def submit_ranking(req: SubmitRankingRequest, user=Depends(get_current_use
         await db.nominees.update_one(
             {"_id": ObjectId(entry.nominee_id)},
             {
-                "$inc": {"total_score": entry.points},
+                "$inc": {"total_score": RANKING_POINTS[entry.rank]},
                 "$addToSet": {"voted_by": jury_id},
             }
         )
@@ -257,11 +284,11 @@ async def get_my_ranking(award_id: str, user=Depends(get_current_user)):
     return {
         "award_id":  award_id,
         "jury_id":   user["sub"],
+        # Points are a scoring detail for the admin, not shown to the juror who cast the vote.
         "rankings":  [
             {
                 "nominee_id": r["nominee_id"],
                 "rank":       r["rank"],
-                "points":     r["points"],
             }
             for r in rankings
         ],

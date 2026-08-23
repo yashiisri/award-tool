@@ -312,30 +312,29 @@ async def red_flag_nominee(req: RedFlagRequest, user=Depends(get_current_user)):
 @router.post("/ai-search-nominees")
 async def ai_search_nominees(req: AISearchRequest, user=Depends(get_current_user)):
     """
-    Real AI-powered nominee research engine.
+    Evidence-based AI nominee research engine.
 
     Flow:
-      1. Fetch award + stored metrics
-      2. Generate search queries via Llama 3.3
-      3. Search DuckDuckGo + Wikipedia
-      4. Extract high-profile business leaders only
-      5. Rank via Llama 3.3
-      6. Return ranked nominee payloads
+      1. Fetch award
+      2. Extract structured research criteria from the award's own text
+      3. Generate dynamic discovery queries and search Tavily/Brave in parallel
+      4. Extract candidate mentions from real search results (never invented)
+      5. Resolve mentions into unique people (multi-signal entity resolution)
+      6. Collect targeted evidence per candidate + score/verify deterministically
+      7. Return ranked, evidence-backed nominee payloads + research metadata
     """
     if user["role"] != "admin":
         raise HTTPException(status_code=403)
 
-    if not settings.GROQ_KEY:
-        # Re-read from env in case settings was loaded before .env was available
+    if not settings.TAVILY_API_KEY:
         import os
-        groq_key = os.environ.get("GROQ_KEY") or settings.GROQ_KEY
-        if not groq_key:
+        tavily_key = os.environ.get("TAVILY_API_KEY") or settings.TAVILY_API_KEY
+        if not tavily_key:
             raise HTTPException(
                 status_code=503,
-                detail="GROQ_KEY is not configured. Please add it to your .env file."
+                detail="TAVILY_API_KEY is not configured. Add it to backend/.env to enable AI research."
             )
-        # Patch settings so the service picks it up
-        settings.GROQ_KEY = groq_key
+        settings.TAVILY_API_KEY = tavily_key
 
     db = get_database()
     award = await db.awards.find_one({"_id": ObjectId(req.award_id)})
@@ -345,7 +344,7 @@ async def ai_search_nominees(req: AISearchRequest, user=Depends(get_current_user
     from services.nominee_service import run_ai_nominee_search
 
     try:
-        nominees = await run_ai_nominee_search(
+        result = await run_ai_nominee_search(
             db=db,
             award_id=req.award_id,
             num_results=req.num_results,
@@ -361,19 +360,18 @@ async def ai_search_nominees(req: AISearchRequest, user=Depends(get_current_user
             detail=f"AI search failed: {str(exc)}"
         )
 
-    if not nominees:
-        raise HTTPException(
-            status_code=404,
-            detail="No high-profile candidates found. Try a more specific award description."
-        )
+    if not result["candidates"]:
+        diagnostic = result.get("research_metadata", {}).get("diagnostic") or \
+            "No verifiable candidates found. Try a more specific award description."
+        raise HTTPException(status_code=404, detail=diagnostic)
 
     await log_action(db, user, "ai_search_nominees", {
         "award_id": req.award_id,
         "num_requested": req.num_results,
-        "num_found": len(nominees),
+        "num_found": len(result["candidates"]),
     })
 
-    return nominees
+    return result
 
 
 @router.get("/awards/{award_id}/metrics")

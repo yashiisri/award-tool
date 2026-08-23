@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { X, Printer, Building2, Briefcase, CheckCircle, AlertTriangle, Star, TrendingUp, Trophy, Sparkles } from 'lucide-react'
 import kpmgLogo from '../../kpmg-logo.png'
 
@@ -28,6 +28,18 @@ function parseRationale(nominee) {
 
 function getInitials(name = '') {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
+}
+
+function hostname(url) {
+  try { return new URL(url).hostname.replace('www.', '') } catch { return url }
+}
+
+function DossierAvatar({ name, photoUrl }) {
+  const [errored, setErrored] = useState(false)
+  if (photoUrl && !errored) {
+    return <img src={photoUrl} alt={name} className="dossier-avatar-img" onError={() => setErrored(true)} />
+  }
+  return <span className="dossier-avatar-initials">{getInitials(name)}</span>
 }
 
 export default function DossierModal({ award, nominees, onClose }) {
@@ -71,8 +83,8 @@ export default function DossierModal({ award, nominees, onClose }) {
   const flagged = nominees.filter(n => n.red_flagged)
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col border border-gray-200">
+    <div className="animate-fade-in fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="animate-scale-in bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col border border-gray-200">
 
         {/* Modal toolbar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-gray-50 rounded-t-2xl">
@@ -181,10 +193,7 @@ export default function DossierModal({ award, nominees, onClose }) {
                   {/* Profile header */}
                   <div className="dossier-profile-header">
                     <div className="dossier-profile-avatar">
-                      {nom.photo_url
-                        ? <img src={nom.photo_url} alt={nom.name} className="dossier-avatar-img" onError={e => { e.target.style.display = 'none' }} />
-                        : <span className="dossier-avatar-initials">{getInitials(nom.name)}</span>
-                      }
+                      <DossierAvatar name={nom.name} photoUrl={nom.photo_url} />
                     </div>
                     <div className="dossier-profile-meta">
                       <div className="dossier-profile-badges">
@@ -275,7 +284,7 @@ export default function DossierModal({ award, nominees, onClose }) {
                       <div className="dossier-field">
                         <p className="dossier-field-label">Verified Sources</p>
                         <div className="dossier-source-tags">
-                          {sources.map((s, j) => <span key={j} className="dossier-source-tag">{s}</span>)}
+                          {sources.map((s, j) => <a key={j} href={s} target="_blank" rel="noreferrer" className="dossier-source-tag">{hostname(s)}</a>)}
                         </div>
                       </div>
                     )}
@@ -425,8 +434,9 @@ export default function DossierModal({ award, nominees, onClose }) {
         .dossier-highlight-red { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 14px 16px; }
         .dossier-source-tags { display: flex; flex-wrap: wrap; gap: 6px; }
         .dossier-source-tag {
-          padding: 3px 10px; background: #EEF2FF; color: #00338D;
+          display: inline-block; padding: 3px 10px; background: #EEF2FF; color: #00338D;
           font-size: 11px; font-weight: 600; border-radius: 6px; border: 1px solid rgba(0,51,141,0.12);
+          text-decoration: none;
         }
 
         /* Profile footer */

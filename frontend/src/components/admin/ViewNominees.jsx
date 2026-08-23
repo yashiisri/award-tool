@@ -4,12 +4,14 @@ import {
   Users, Plus, Trash2, X, Sparkles, AlertTriangle,
   ChevronDown, Building2, Briefcase,
   CheckCircle, Loader2, Brain, BarChart3,
-  FileText, Flag, ShieldCheck, ShieldOff, Printer
+  FileText, Flag, ShieldCheck, ShieldOff, Printer,
+  ShieldQuestion, ShieldAlert, ExternalLink, ChevronUp
 } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 import NomineeProfileCard from './NomineeProfileCard'
 import DossierModal from './DossierModal'
+import Avatar from '../common/Avatar'
 
 // ── Confidence badge ──────────────────────────────────────────────────────────
 function ConfidenceBadge({ score }) {
@@ -26,9 +28,85 @@ function ConfidenceBadge({ score }) {
   )
 }
 
+// ── Verification badge ────────────────────────────────────────────────────────
+const VERIFICATION_META = {
+  verified: { icon: ShieldCheck, label: 'Verified', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  partially_verified: { icon: ShieldQuestion, label: 'Partially Verified', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  unverified: { icon: ShieldAlert, label: 'Unverified', className: 'bg-gray-100 text-gray-500 border-gray-200' },
+}
+function VerificationBadge({ status }) {
+  const meta = VERIFICATION_META[status] || VERIFICATION_META.unverified
+  const Icon = meta.icon
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${meta.className}`}>
+      <Icon className="w-3 h-3" /> {meta.label}
+    </span>
+  )
+}
+
+const SCORE_LABELS = {
+  award_relevance: 'Award relevance', leadership_impact: 'Leadership impact',
+  industry_relevance: 'Industry relevance', achievement_strength: 'Achievement strength',
+  source_quality: 'Source quality', recency: 'Recency',
+}
+
+function hostname(url) {
+  try { return new URL(url).hostname.replace('www.', '') } catch { return url }
+}
+
+// ── Research metadata summary ─────────────────────────────────────────────────
+function ResearchMetaBar({ metadata }) {
+  if (!metadata) return null
+  const stats = [
+    { label: 'Queries run', value: metadata.queries_executed },
+    { label: 'Sources examined', value: metadata.sources_examined },
+    { label: 'Candidates discovered', value: metadata.candidates_discovered },
+    { label: 'Verified', value: metadata.candidates_verified },
+    { label: 'Time', value: `${(metadata.research_duration_ms / 1000).toFixed(1)}s` },
+  ]
+  return (
+    <div className="flex items-center gap-4 px-6 py-2.5 bg-gray-50 border-b border-gray-100 flex-wrap flex-shrink-0">
+      {stats.map(s => (
+        <div key={s.label} className="text-xs text-gray-500">
+          <span className="font-bold text-[#0A1628]">{s.value}</span> {s.label}
+        </div>
+      ))}
+      {metadata.providers_used?.length > 0 && (
+        <div className="text-xs text-gray-400 ml-auto">via {metadata.providers_used.join(', ')}</div>
+      )}
+    </div>
+  )
+}
+
+// ── Evidence list ──────────────────────────────────────────────────────────────
+function EvidenceList({ evidence }) {
+  if (!evidence?.length) return <p className="text-xs text-gray-400 italic">No independent evidence collected yet.</p>
+  return (
+    <div className="flex flex-col gap-2 mt-2">
+      {evidence.slice(0, 6).map((e, i) => (
+        <a
+          key={i} href={e.source_url} target="_blank" rel="noreferrer"
+          onClick={ev => ev.stopPropagation()}
+          className="flex items-start gap-2 p-2.5 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-100 transition-colors group"
+        >
+          <ExternalLink className="w-3 h-3 text-gray-400 mt-0.5 flex-shrink-0 group-hover:text-[#00338D]" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[#0A1628] truncate">{e.source_title || hostname(e.source_url)}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-gray-200 text-gray-400 flex-shrink-0">{e.source_domain}</span>
+            </div>
+            {e.evidence_text && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{e.evidence_text}</p>}
+          </div>
+        </a>
+      ))}
+    </div>
+  )
+}
+
 // ── AI Results Preview Modal ──────────────────────────────────────────────────
-function AIResultsModal({ results, onConfirm, onClose, saving }) {
+function AIResultsModal({ results, metadata, onConfirm, onClose, saving }) {
   const [selected, setSelected] = useState(() => new Set(results.map((_, i) => i)))
+  const [expanded, setExpanded] = useState(null)
   const toggle = (i) => {
     setSelected(prev => {
       const next = new Set(prev)
@@ -38,9 +116,9 @@ function AIResultsModal({ results, onConfirm, onClose, saving }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl border border-gray-100 max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
+    <div className="animate-fade-in fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="animate-scale-in bg-white rounded-2xl shadow-2xl w-full max-w-3xl border border-gray-100 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-gradient-to-br from-[#7F3F98] to-[#0091DA] rounded-xl flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
@@ -55,46 +133,74 @@ function AIResultsModal({ results, onConfirm, onClose, saving }) {
           </button>
         </div>
 
+        <ResearchMetaBar metadata={metadata} />
+
         <div className="overflow-y-auto flex-1 p-4 space-y-3">
           {results.map((nom, i) => {
             const isSelected = selected.has(i)
-            const sources = nom.rationale_data?.source_links || nom.sources || []
-            const score = nom.rationale_data?.confidence_score ?? 0
-            const reason = nom.rationale_data?.relevance_reason || ''
+            const isExpanded = expanded === i
+            const sources = nom.sources || nom.rationale_data?.source_links || []
+            const score = nom.overall_score ?? nom.rationale_data?.confidence_score ?? 0
+            const reason = nom.rationale || nom.rationale_data?.relevance_reason || ''
             return (
               <div
                 key={i}
-                onClick={() => toggle(i)}
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                className={`animate-fade-in-up rounded-xl border-2 transition-all ${
                   isSelected ? 'border-[#00338D] bg-[#EEF2FA]' : 'border-gray-100 bg-white hover:border-gray-200'
                 }`}
+                style={{ animationDelay: `${i * 40}ms` }}
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#00338D] to-[#0091DA] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {nom.photo_url ? (
-                      <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                    ) : (
-                      <span className="text-white text-lg font-black">{nom.name?.[0]}</span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="font-bold text-[#0A1628] text-sm">{nom.name}</span>
-                      <ConfidenceBadge score={score} />
-                      {isSelected && <CheckCircle className="w-4 h-4 text-[#00338D]" />}
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-400 mb-2">
-                      <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{nom.designation}</span>
-                      <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{nom.organisation}</span>
-                    </div>
-                    {reason && <p className="text-xs text-gray-600 leading-relaxed mb-2 line-clamp-2">{reason}</p>}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {sources.slice(0, 3).map((s, si) => (
-                        <span key={si} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EEF2FF] text-[#00338D] text-xs rounded font-medium border border-[#00338D]/10">{s}</span>
-                      ))}
+                <div className="p-4 cursor-pointer" onClick={() => toggle(i)}>
+                  <div className="flex items-start gap-3">
+                    <Avatar name={nom.name} photoUrl={nom.photo_url} size={44} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-bold text-[#0A1628] text-sm">{nom.name}</span>
+                        <VerificationBadge status={nom.verification_status} />
+                        <ConfidenceBadge score={score} />
+                        {isSelected && <CheckCircle className="w-4 h-4 text-[#00338D]" />}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-400 mb-2 flex-wrap">
+                        {nom.designation && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{nom.designation}</span>}
+                        {nom.organisation && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{nom.organisation}</span>}
+                      </div>
+                      {reason && <p className="text-xs text-gray-600 leading-relaxed mb-2 line-clamp-2">{reason}</p>}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {sources.slice(0, 3).map((s, si) => (
+                          <a key={si} href={s} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EEF2FF] text-[#00338D] text-xs rounded font-medium border border-[#00338D]/10 hover:bg-[#00338D] hover:text-white transition-colors">
+                            <ExternalLink className="w-2.5 h-2.5" />{hostname(s)}
+                          </a>
+                        ))}
+                        {nom.evidence?.length > 0 && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setExpanded(isExpanded ? null : i) }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded font-medium hover:bg-gray-200 transition-colors"
+                          >
+                            {nom.evidence.length} evidence item{nom.evidence.length !== 1 ? 's' : ''}
+                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                {isExpanded && (
+                  <div className="px-4 pb-4 pt-0 border-t border-gray-100 mt-1" onClick={e => e.stopPropagation()}>
+                    {nom.scores && (
+                      <div className="grid grid-cols-3 gap-2 my-3">
+                        {Object.entries(nom.scores).map(([key, val]) => (
+                          <div key={key} className="bg-white border border-gray-100 rounded-lg px-2.5 py-2">
+                            <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">{SCORE_LABELS[key] || key}</div>
+                            <div className="text-sm font-bold text-[#0A1628]">{Math.round(val * 100)}%</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <EvidenceList evidence={nom.evidence} />
+                  </div>
+                )}
               </div>
             )
           })}
@@ -131,6 +237,7 @@ export default function ViewNominees() {
   const [showDossier, setShowDossier] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResults, setAiResults] = useState(null)
+  const [aiMetadata, setAiMetadata] = useState(null)
   const [aiSaving, setAiSaving] = useState(false)
   const [aiError, setAiError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -205,7 +312,8 @@ export default function ViewNominees() {
         award_id: selectedAward,
         num_results: award?.num_nominees || 5,
       })
-      setAiResults(data)
+      setAiResults(data.candidates)
+      setAiMetadata(data.research_metadata || null)
     } catch (err) {
       setAiError(err.response?.data?.detail || 'AI search failed. Please try again.')
     } finally { setAiLoading(false) }
@@ -221,7 +329,7 @@ export default function ViewNominees() {
           rationale: nom.rationale, award_id: selectedAward,
         })
       }
-      setAiResults(null); fetchNominees()
+      setAiResults(null); setAiMetadata(null); fetchNominees()
     } catch (err) { console.error(err) }
     finally { setAiSaving(false) }
   }
@@ -288,7 +396,7 @@ export default function ViewNominees() {
 
       {/* Award info banner */}
       {currentAward && (
-        <div className="mb-6 p-4 bg-[#EEF2FA] border border-[#00338D]/15 rounded-xl flex items-start gap-3">
+        <div className="animate-fade-in-up mb-6 p-4 bg-[#EEF2FA] border border-[#00338D]/15 rounded-xl flex items-start gap-3">
           <div className="w-8 h-8 bg-[#00338D] rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
@@ -340,7 +448,7 @@ export default function ViewNominees() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {nominees.map(nom => {
+          {nominees.map((nom, i) => {
             const busy = actionLoading[nom.id]
             const isApproved = nom.validated
             const isFlagged = nom.red_flagged
@@ -348,64 +456,59 @@ export default function ViewNominees() {
             return (
               <div
                 key={nom.id}
-                className={`group bg-white border rounded-2xl overflow-hidden transition-all ${
-                  isFlagged ? 'border-red-200' : isApproved ? 'border-green-200' : 'border-gray-100 hover:border-[#00338D]/20 hover:shadow-md'
+                className={`group hover-lift animate-fade-in-up bg-white border rounded-2xl overflow-hidden transition-all ${
+                  isFlagged ? 'border-red-200' : isApproved ? 'border-green-200' : 'border-gray-100 hover:border-[#00338D]/20 hover:shadow-lg hover:shadow-[#00338D]/5'
                 }`}
+                style={{ animationDelay: `${i * 40}ms` }}
               >
-                {/* Photo */}
-                <div
-                  className="h-36 bg-gradient-to-br from-[#EEF2FA] to-[#dce8f5] flex items-center justify-center relative cursor-pointer overflow-hidden"
-                  onClick={() => setSelectedNominee(nom)}
-                >
-                  {nom.photo_url ? (
-                    <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                  ) : (
-                    <div className="w-16 h-16 bg-[#00338D] rounded-full flex items-center justify-center">
-                      <span className="text-white text-2xl font-black">{nom.name?.[0]}</span>
+                <div className="p-4 pb-0">
+                  {/* Status badges */}
+                  {(isApproved || nom.ai_generated || isFlagged) && (
+                    <div className="flex items-center justify-between gap-1 mb-3">
+                      <div className="flex gap-1">
+                        {isApproved && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-[#EEF2FA] text-[#00338D] text-[11px] font-semibold rounded-lg">
+                            <CheckCircle className="w-3 h-3" /> Approved
+                          </span>
+                        )}
+                        {nom.ai_generated && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-[#7F3F98] to-[#0091DA] text-white text-[11px] font-semibold rounded-lg">
+                            <Sparkles className="w-3 h-3" /> AI
+                          </span>
+                        )}
+                      </div>
+                      {isFlagged && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 text-[11px] font-semibold rounded-lg border border-red-100">
+                          <AlertTriangle className="w-3 h-3" /> Flagged
+                        </span>
+                      )}
                     </div>
                   )}
 
-                  {/* Status badges */}
-                  <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1">
-                    <div className="flex gap-1">
-                      {isApproved && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-[#00338D] text-white text-xs font-semibold rounded-lg">
-                          <CheckCircle className="w-3 h-3" /> Approved
-                        </span>
-                      )}
-                      {nom.ai_generated && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-[#7F3F98] to-[#0091DA] text-white text-xs font-semibold rounded-lg">
-                          <Sparkles className="w-3 h-3" /> AI
-                        </span>
-                      )}
+                  {/* Avatar + identity */}
+                  <div className="flex items-start gap-3 cursor-pointer" onClick={() => setSelectedNominee(nom)}>
+                    <Avatar name={nom.name} photoUrl={nom.photo_url} size={56} />
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-bold text-[#0A1628] text-sm leading-snug hover:text-[#00338D] transition-colors line-clamp-1">
+                          {nom.name}
+                        </h3>
+                        <ConfidenceBadge score={nom.rationale_data?.confidence_score} />
+                      </div>
+                      <div className="flex items-center gap-1.5 text-gray-400 text-xs mt-1">
+                        <Briefcase className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{nom.designation}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-gray-400 text-xs mt-0.5">
+                        <Building2 className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{nom.organisation}</span>
+                      </div>
                     </div>
-                    {isFlagged && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500 text-white text-xs font-semibold rounded-lg">
-                        <AlertTriangle className="w-3 h-3" /> Flagged
-                      </span>
-                    )}
                   </div>
                 </div>
 
                 <div className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3
-                      className="font-bold text-[#0A1628] text-sm leading-snug cursor-pointer hover:text-[#00338D] transition-colors line-clamp-1"
-                      onClick={() => setSelectedNominee(nom)}
-                    >
-                      {nom.name}
-                    </h3>
-                    <ConfidenceBadge score={nom.rationale_data?.confidence_score} />
-                  </div>
-                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5">
-                    <Briefcase className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{nom.designation}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-3">
-                    <Building2 className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{nom.organisation}</span>
-                  </div>
-                  <p className="text-gray-500 text-xs leading-relaxed line-clamp-2 mb-4">{nom.rationale}</p>
+                  <p className="text-gray-500 text-xs leading-relaxed line-clamp-2 mb-4 mt-1">{nom.rationale}</p>
 
                   {/* Action buttons */}
                   <div className="flex gap-1.5 pt-3 border-t border-gray-50" onClick={e => e.stopPropagation()}>
@@ -477,8 +580,9 @@ export default function ViewNominees() {
       {aiResults && (
         <AIResultsModal
           results={aiResults}
+          metadata={aiMetadata}
           onConfirm={handleConfirmAIResults}
-          onClose={() => setAiResults(null)}
+          onClose={() => { setAiResults(null); setAiMetadata(null) }}
           saving={aiSaving}
         />
       )}
@@ -490,8 +594,8 @@ export default function ViewNominees() {
 
       {/* Add Nominee Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 max-h-[90vh] overflow-y-auto">
+        <div className="animate-fade-in fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="animate-scale-in bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <div>
                 <h2 className="text-base font-bold text-[#0A1628]">Add Nominee</h2>

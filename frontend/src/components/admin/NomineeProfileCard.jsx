@@ -1,4 +1,8 @@
-import { X, AlertTriangle, CheckCircle, Trophy, TrendingUp, User, Star, Building2, Briefcase } from 'lucide-react'
+import { X, AlertTriangle, CheckCircle, Trophy, TrendingUp, User, Star, Building2, Briefcase, ExternalLink } from 'lucide-react'
+
+function hostname(url) {
+  try { return new URL(url).hostname.replace('www.', '') } catch { return url }
+}
 
 function getInitials(name = '') {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
@@ -61,10 +65,12 @@ export default function NomineeProfileCard({ nominee, onClose }) {
 
   return (
     <div
+      className="animate-fade-in"
       style={{ position: 'fixed', inset: 0, background: 'rgba(10,22,40,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }}
       onClick={onClose}
     >
       <div
+        className="animate-scale-in"
         style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.25)', fontFamily: "'Inter', system-ui, sans-serif" }}
         onClick={e => e.stopPropagation()}
       >
@@ -190,7 +196,12 @@ export default function NomineeProfileCard({ nominee, onClose }) {
               <p style={{ color: '#9BA8B5', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Verified Sources</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {nominee.sources.map((s, i) => (
-                  <span key={i} style={{ padding: '4px 10px', background: '#EEF2FF', color: '#00338D', fontSize: 11, fontWeight: 600, borderRadius: 6, border: '1px solid rgba(0,51,141,0.12)' }}>{s}</span>
+                  <a
+                    key={i} href={s} target="_blank" rel="noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#EEF2FF', color: '#00338D', fontSize: 11, fontWeight: 600, borderRadius: 6, border: '1px solid rgba(0,51,141,0.12)', textDecoration: 'none' }}
+                  >
+                    <ExternalLink size={10} /> {hostname(s)}
+                  </a>
                 ))}
               </div>
             </div>

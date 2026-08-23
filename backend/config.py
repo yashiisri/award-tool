@@ -13,6 +13,26 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     OPENAI_API_KEY: Optional[str] = None
     GROQ_KEY: Optional[str] = None
+    TAVILY_API_KEY: Optional[str] = None
+    BRAVE_API_KEY: Optional[str] = None
+
+    # Research engine tuning — all overridable via .env, sensible defaults otherwise
+    RESEARCH_MAX_CONCURRENCY: int = 8
+    RESEARCH_SEARCH_TIMEOUT: float = 15.0
+    RESEARCH_CACHE_TTL_SEARCH: int = 21600       # 6h
+    RESEARCH_CACHE_TTL_EVIDENCE: int = 86400     # 24h
+    RESEARCH_MIN_CONFIDENCE: float = 0.35
+    RESEARCH_STAGE1_DISCOVERY_LIMIT: int = 40    # unique candidates kept after entity resolution
+    RESEARCH_STAGE2_VERIFY_LIMIT: int = 20       # candidates that get a basic verification pass
+    RESEARCH_STAGE3_DEEP_LIMIT: int = 10         # candidates that get deep per-candidate evidence search
+
+    # Scoring weights — must sum to 1.0
+    WEIGHT_AWARD_RELEVANCE: float = 0.30
+    WEIGHT_LEADERSHIP_IMPACT: float = 0.20
+    WEIGHT_INDUSTRY_RELEVANCE: float = 0.15
+    WEIGHT_ACHIEVEMENT_STRENGTH: float = 0.15
+    WEIGHT_SOURCE_QUALITY: float = 0.10
+    WEIGHT_RECENCY: float = 0.10
 
     model_config = {
         "env_file": str(ENV_FILE),

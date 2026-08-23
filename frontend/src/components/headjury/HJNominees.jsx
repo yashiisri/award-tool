@@ -7,6 +7,7 @@ import {
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 import NomineeProfileCard from '../admin/NomineeProfileCard'
+import Avatar from '../common/Avatar'
 
 export default function HJNominees() {
   const [searchParams] = useSearchParams()
@@ -120,90 +121,63 @@ export default function HJNominees() {
           <p className="text-gray-400 text-xs mt-1">Use the Add Nominee button to add the first candidate.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {nominees.map(nom => {
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {nominees.map((nom, i) => {
             const isApproved = nom.validated
             const isFlagged  = nom.red_flagged
 
             return (
               <div
                 key={nom.id}
-                className={`
-                  group relative bg-white rounded-2xl overflow-hidden
-                  border transition-all duration-300 ease-out
-                  hover:-translate-y-1 hover:shadow-xl hover:shadow-[#7F3F98]/8
-                  ${isFlagged
-                    ? 'border-red-200 hover:border-red-300'
-                    : 'border-gray-100 hover:border-[#7F3F98]/20'}
-                `}
+                className={`group hover-lift animate-fade-in-up bg-white border rounded-2xl overflow-hidden transition-all ${
+                  isFlagged ? 'border-red-200' : isApproved ? 'border-green-200' : 'border-gray-100 hover:border-[#7F3F98]/20 hover:shadow-lg hover:shadow-[#7F3F98]/5'
+                }`}
+                style={{ animationDelay: `${i * 40}ms` }}
               >
-                {/* Avatar banner */}
-                <div
-                  className="relative h-44 cursor-pointer overflow-hidden"
-                  onClick={() => setSelectedNominee(nom)}
-                >
-                  <div className={`absolute inset-0 transition-transform duration-500 group-hover:scale-105
-                    ${isFlagged
-                      ? 'bg-gradient-to-br from-red-50 to-red-100'
-                      : 'bg-gradient-to-br from-[#F5EEF8] via-[#ead5f5] to-[#d8b4f0]'}`}
-                  />
-
-                  {nom.photo_url ? (
-                    <img
-                      src={nom.photo_url}
-                      alt={nom.name}
-                      className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
-                      onError={e => { e.target.style.display = 'none' }}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className={`
-                        w-16 h-16 rounded-2xl flex items-center justify-center
-                        shadow-lg transition-transform duration-300 group-hover:scale-110
-                        ${isFlagged ? 'bg-red-400' : 'bg-gradient-to-br from-[#7F3F98] to-[#5B2D6E]'}
-                      `}>
-                        <span className="text-white text-2xl font-black">{nom.name?.[0]}</span>
+                <div className="p-4 pb-0">
+                  {/* Status badges */}
+                  {(isApproved || isFlagged) && (
+                    <div className="flex items-center justify-between gap-1 mb-3">
+                      <div className="flex gap-1">
+                        {isApproved && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-[#F5EEF8] text-[#7F3F98] text-[11px] font-semibold rounded-lg">
+                            <CheckCircle className="w-3 h-3" /> Approved
+                          </span>
+                        )}
                       </div>
+                      {isFlagged && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 text-[11px] font-semibold rounded-lg border border-red-100">
+                          <AlertTriangle className="w-3 h-3" /> Flagged
+                        </span>
+                      )}
                     </div>
                   )}
 
-                  {/* Status badges */}
-                  <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
-                    {isApproved && (
-                      <span className="flex items-center gap-1 px-2.5 py-1 bg-[#00338D] text-white text-xs font-semibold rounded-lg shadow-sm">
-                        <CheckCircle className="w-3 h-3" /> Approved
-                      </span>
-                    )}
-                    {isFlagged && (
-                      <span className="flex items-center gap-1 px-2.5 py-1 bg-red-500 text-white text-xs font-semibold rounded-lg shadow-sm ml-auto">
-                        <AlertTriangle className="w-3 h-3" /> Flagged
-                      </span>
-                    )}
+                  {/* Avatar + identity */}
+                  <div className="flex items-start gap-3 cursor-pointer" onClick={() => setSelectedNominee(nom)}>
+                    <Avatar name={nom.name} photoUrl={nom.photo_url} size={56} />
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <h3 className="font-bold text-[#0A1628] text-sm leading-snug hover:text-[#7F3F98] transition-colors line-clamp-1">
+                        {nom.name}
+                      </h3>
+                      <div className="flex items-center gap-1.5 text-gray-400 text-xs mt-1">
+                        <Briefcase className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{nom.designation}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-gray-400 text-xs mt-0.5">
+                        <Building2 className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{nom.organisation}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Card body */}
-                <div className="px-5 pt-4 pb-5">
-                  <h3
-                    className="font-bold text-[#0A1628] text-sm leading-snug mb-1 cursor-pointer hover:text-[#7F3F98] transition-colors duration-200 line-clamp-1"
-                    onClick={() => setSelectedNominee(nom)}
-                  >
-                    {nom.name}
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5">
-                    <Briefcase className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{nom.designation}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-5">
-                    <Building2 className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{nom.organisation}</span>
-                  </div>
-
-                  {/* Action buttons — flag & delete only */}
-                  <div className="flex gap-2">
+                {/* Action buttons — flag & delete only */}
+                <div className="p-4">
+                  <div className="flex gap-2 pt-3 border-t border-gray-50">
                     <button
                       onClick={() => setShowFlagModal(nom.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-orange-50 text-orange-500 border border-orange-200 rounded-xl text-xs font-semibold hover:bg-orange-500 hover:text-white hover:border-orange-500 hover:shadow-md transition-all duration-200 active:scale-95"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-orange-500 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all"
                       title="Flag nominee"
                     >
                       <Flag className="w-3.5 h-3.5" />
@@ -211,20 +185,13 @@ export default function HJNominees() {
                     </button>
                     <button
                       onClick={() => handleDelete(nom.id)}
-                      className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-400 border border-red-200 rounded-xl hover:bg-red-500 hover:text-white hover:border-red-500 transition-all duration-200 active:scale-95"
+                      className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"
                       title="Remove nominee"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-
-                {/* Bottom accent line */}
-                <div className={`
-                  absolute bottom-0 inset-x-0 h-0.5 scale-x-0 group-hover:scale-x-100
-                  transition-transform duration-300 origin-left
-                  ${isFlagged ? 'bg-red-400' : 'bg-gradient-to-r from-[#7F3F98] to-[#5B2D6E]'}
-                `} />
               </div>
             )
           })}
@@ -238,71 +205,54 @@ export default function HJNominees() {
 
       {/* Add Nominee modal */}
       {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,22,40,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }}>
-          <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.12)', fontFamily: "'Inter', system-ui, sans-serif" }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px 28px', borderBottom: '1px solid #F0F4F8' }}>
+        <div className="animate-fade-in fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="animate-scale-in bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <div>
-                <h2 style={{ color: '#0A1628', fontWeight: 700, fontSize: 17, letterSpacing: '-0.02em' }}>Add Nominee</h2>
-                <p style={{ color: '#9BA8B5', fontSize: 13, marginTop: 2 }}>Add a candidate to this award</p>
+                <h2 className="text-base font-bold text-[#0A1628]">Add Nominee</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Add a candidate to this award</p>
               </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9BA8B5', padding: 4, borderRadius: 6 }}
-                onMouseEnter={e => e.currentTarget.style.color = '#0A1628'}
-                onMouseLeave={e => e.currentTarget.style.color = '#9BA8B5'}
-              >
-                <X className="w-5 h-5" />
+              <button onClick={() => setShowAddModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-all">
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <form onSubmit={handleAdd} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleAdd} className="p-6 space-y-4">
               {[
-                ['Full Name', 'name', 'e.g. Roshni Nadar Malhotra', true],
-                ['Designation', 'designation', 'e.g. Chairperson', true],
-                ['Organisation', 'organisation', 'e.g. HCLTech', true],
-                ['Photo URL (optional)', 'photo_url', 'https://...', false],
-              ].map(([label, key, ph, req]) => (
+                { label: 'Full Name', key: 'name', placeholder: 'e.g. Roshni Nadar Malhotra' },
+                { label: 'Designation', key: 'designation', placeholder: 'e.g. Chairperson' },
+                { label: 'Organisation', key: 'organisation', placeholder: 'e.g. HCLTech' },
+                { label: 'Photo URL (optional)', key: 'photo_url', placeholder: 'https://...' },
+              ].map(({ label, key, placeholder }) => (
                 <div key={key}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9BA8B5', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{label}</label>
                   <input
                     type="text"
                     value={form[key]}
                     onChange={e => setForm({ ...form, [key]: e.target.value })}
-                    style={{ width: '100%', padding: '11px 14px', background: '#F7F9FC', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, color: '#0A1628', outline: 'none', boxSizing: 'border-box' }}
-                    placeholder={ph}
-                    required={req}
-                    onFocus={e => e.target.style.borderColor = '#00338D'}
-                    onBlur={e => e.target.style.borderColor = '#E8ECF0'}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[#0A1628] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7F3F98]/30 text-sm"
+                    placeholder={placeholder}
+                    required={key !== 'photo_url'}
                   />
                 </div>
               ))}
               <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#9BA8B5', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Rationale *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Rationale *</label>
                 <textarea
                   value={form.rationale}
                   onChange={e => setForm({ ...form, rationale: e.target.value })}
-                  style={{ width: '100%', padding: '11px 14px', background: '#F7F9FC', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, color: '#0A1628', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
-                  rows={4}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[#0A1628] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7F3F98]/30 resize-none text-sm"
+                  rows="4"
                   placeholder="Why is this person being nominated?"
                   required
-                  onFocus={e => e.target.style.borderColor = '#00338D'}
-                  onBlur={e => e.target.style.borderColor = '#E8ECF0'}
                 />
               </div>
-              <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{ flex: 1, padding: '12px', background: loading ? '#9BA8B5' : '#00338D', color: 'white', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}
-                  onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#002a73' }}
-                  onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#00338D' }}
-                >
+              <div className="flex gap-3 pt-2">
+                <button type="submit" disabled={loading}
+                  className="flex-1 py-2.5 bg-[#00338D] text-white rounded-xl font-semibold text-sm hover:bg-[#002a73] disabled:opacity-50 transition-colors">
                   {loading ? 'Adding...' : 'Add Nominee'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  style={{ padding: '12px 18px', background: '#F7F9FC', color: '#6B7A8D', border: '1px solid #E8ECF0', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-                >
+                <button type="button" onClick={() => setShowAddModal(false)}
+                  className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors">
                   Cancel
                 </button>
               </div>

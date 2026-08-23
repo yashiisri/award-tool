@@ -176,6 +176,7 @@ async def get_ranking_status(user=Depends(get_current_user)):
         except Exception:
             pass
 
+    # Head jury sees rank order, never the underlying point weighting.
     result = []
     for r in rankings:
         nid = r["nominee_id"]
@@ -188,7 +189,6 @@ async def get_ranking_status(user=Depends(get_current_user)):
             "nominee_name": nominees_map.get(nid, {}).get("name", nid),
             "nominee_org":  nominees_map.get(nid, {}).get("organisation", ""),
             "rank":         r["rank"],
-            "points":       r["points"],
             "created_at":   r["created_at"].isoformat() if r.get("created_at") else "",
         })
 
@@ -232,7 +232,6 @@ async def get_hj_results(award_id: str, user=Depends(get_current_user)):
             if nom:
                 results.append({
                     "rank":         r["rank"],
-                    "points":       r["points"],
                     "nominee_id":   r["nominee_id"],
                     "name":         nom.get("name", ""),
                     "designation":  nom.get("designation", ""),
@@ -274,7 +273,6 @@ async def get_all_hj_results(user=Depends(get_current_user)):
                 if nom:
                     nominees_ranked.append({
                         "rank":         r["rank"],
-                        "points":       r["points"],
                         "nominee_id":   r["nominee_id"],
                         "name":         nom.get("name", ""),
                         "designation":  nom.get("designation", ""),

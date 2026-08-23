@@ -44,8 +44,8 @@ export default function JuryComments() {
           { label: 'Total Comments', value: comments.length, color: '#00338D', bg: '#EEF2FA' },
           { label: 'Jury Members', value: juryMembers.length, color: '#7F3F98', bg: '#F5EEF8' },
           { label: 'Awards Covered', value: [...new Set(comments.map(c => c.award_id))].length, color: '#0091DA', bg: '#EAF5FC' },
-        ].map(({ label, value, color, bg }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        ].map(({ label, value, color, bg }, i) => (
+          <div key={label} className="animate-fade-in-up hover-lift bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md" style={{ animationDelay: `${i * 60}ms` }}>
             <div className="text-2xl font-black mb-1" style={{ color }}>{value}</div>
             <div className="text-gray-400 text-xs font-medium">{label}</div>
           </div>
@@ -78,8 +78,8 @@ export default function JuryComments() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(c => (
-            <div key={c.id} className="bg-white border border-gray-100 rounded-2xl p-5 hover:shadow-sm hover:border-[#00338D]/15 transition-all">
+          {filtered.map((c, i) => (
+            <div key={c.id} className="animate-fade-in-up bg-white border border-gray-100 rounded-2xl p-5 hover:shadow-md hover:border-[#00338D]/15 hover:-translate-y-0.5 transition-all" style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 flex-1">
                   <div className="w-9 h-9 bg-[#00338D] rounded-xl flex items-center justify-center flex-shrink-0">

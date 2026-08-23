@@ -56,8 +56,8 @@ export default function AuditTrail() {
           { label: 'Admin Actions', value: logs.filter(l => l.user_role === 'admin').length, color: '#00338D' },
           { label: 'Jury Actions', value: logs.filter(l => l.user_role === 'jury').length, color: '#0091DA' },
           { label: 'Head Jury Actions', value: logs.filter(l => l.user_role === 'head_jury').length, color: '#7F3F98' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+        ].map(({ label, value, color }, i) => (
+          <div key={label} className="animate-fade-in-up hover-lift bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-md" style={{ animationDelay: `${i * 60}ms` }}>
             <div className="text-2xl font-black mb-1" style={{ color }}>{value}</div>
             <div className="text-gray-400 text-xs font-medium">{label}</div>
           </div>
@@ -85,7 +85,7 @@ export default function AuditTrail() {
           <div className="px-6 py-16 text-center text-gray-400 text-sm">No audit logs yet.</div>
         ) : (
           filtered.map((log, i) => (
-            <div key={log.id} className={`grid grid-cols-12 px-6 py-4 items-start gap-4 ${i !== filtered.length - 1 ? 'border-b border-gray-50' : ''} hover:bg-gray-50/50 transition-colors`}>
+            <div key={log.id} className={`animate-fade-in-up grid grid-cols-12 px-6 py-4 items-start gap-4 ${i !== filtered.length - 1 ? 'border-b border-gray-50' : ''} hover:bg-gray-50/50 transition-colors`} style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
               <div className="col-span-2 flex items-center gap-2">
                 <div className="w-7 h-7 bg-[#EEF2FA] rounded-lg flex items-center justify-center flex-shrink-0">
                   <span className="text-[#00338D] text-xs font-black">{log.user_id?.[0]?.toUpperCase()}</span>

@@ -97,8 +97,8 @@ function VoteScoresTab({ awards }) {
       {/* One card per jury member */}
       {!loading && rankingsByJury.length > 0 && (
         <div className="space-y-5">
-          {rankingsByJury.map(member => (
-            <div key={member.jury_id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+          {rankingsByJury.map((member, mi) => (
+            <div key={member.jury_id} className="animate-fade-in-up bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm" style={{ animationDelay: `${mi * 80}ms` }}>
 
               {/* Member header */}
               <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-100">
@@ -250,7 +250,7 @@ function Top3Podium({ award, onLoad }) {
         const medals = ['🥇', '🥈', '🥉']
 
         return (
-          <div key={entry.nominee_id} className={`flex items-center gap-4 p-4 rounded-xl border ${m.bg} ${m.border}`}>
+          <div key={entry.nominee_id} className={`animate-fade-in-up flex items-center gap-4 p-4 rounded-xl border ${m.bg} ${m.border}`} style={{ animationDelay: `${i * 80}ms` }}>
             {/* Medal */}
             <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-2xl">
               {medals[i]}
@@ -353,8 +353,8 @@ export default function JuryVoteStatus() {
           { label: 'Jury Members', value: users.filter(u => u.role === 'jury').length,      color: '#0091DA', bg: '#EAF5FC' },
           { label: 'Head Jury',    value: users.filter(u => u.role === 'head_jury').length,  color: '#7F3F98', bg: '#F5EEF8' },
           { label: 'Actions Logged', value: auditLogs.length,                                color: '#059669', bg: '#ECFDF5' },
-        ].map(({ label, value, color, bg }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+        ].map(({ label, value, color, bg }, i) => (
+          <div key={label} className="animate-fade-in-up hover-lift bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md" style={{ animationDelay: `${i * 60}ms` }}>
             <div className="text-2xl font-black mb-1" style={{ color }}>{value}</div>
             <div className="text-gray-400 text-xs font-medium">{label}</div>
           </div>
@@ -443,7 +443,7 @@ export default function JuryVoteStatus() {
             <div className="px-6 py-12 text-center text-gray-400 text-sm">No activity logged yet.</div>
           ) : (
             auditLogs.slice(0, 50).map((log, i) => (
-              <div key={log.id} className={`grid grid-cols-4 px-6 py-3.5 items-center ${i !== auditLogs.length - 1 ? 'border-b border-gray-50' : ''} hover:bg-gray-50/50 transition-colors`}>
+              <div key={log.id} className={`animate-fade-in-up grid grid-cols-4 px-6 py-3.5 items-center ${i !== auditLogs.length - 1 ? 'border-b border-gray-50' : ''} hover:bg-gray-50/50 transition-colors`} style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 bg-[#EEF2FA] rounded-lg flex items-center justify-center">
                     <span className="text-[#00338D] text-xs font-black">{log.user_id?.[0]?.toUpperCase()}</span>
@@ -478,10 +478,10 @@ export default function JuryVoteStatus() {
               <p className="text-gray-400 text-sm">No jury members created yet.</p>
             </div>
           ) : (
-            users.map(u => {
+            users.map((u, i) => {
               const memberLogs = auditLogs.filter(l => l.user_id === u.username)
               return (
-                <div key={u.id} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+                <div key={u.id} className="animate-fade-in-up hover-lift bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-all" style={{ animationDelay: `${i * 50}ms` }}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-black"
                       style={{ backgroundColor: u.role === 'head_jury' ? '#7F3F98' : '#0091DA' }}>

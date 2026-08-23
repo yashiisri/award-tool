@@ -54,7 +54,7 @@ export default function VoteControl() {
       <PageHeader icon={Settings} title="Vote Control" subtitle="Control when jury and head jury can vote and nominate" accent="#00338D" light="#EEF2FA" />
 
       {awards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
+        <div className="animate-fade-in-up flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
           <div className="w-14 h-14 bg-[#EEF2FA] rounded-2xl flex items-center justify-center mb-4">
             <Settings className="w-7 h-7 text-[#00338D]" />
           </div>
@@ -63,10 +63,10 @@ export default function VoteControl() {
         </div>
       ) : (
         <div className="space-y-4">
-          {awards.map(award => {
+          {awards.map((award, i) => {
             const ctrl = controls[award.id] || {}
             return (
-              <div key={award.id} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
+              <div key={award.id} className="animate-fade-in-up bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all" style={{ animationDelay: `${i * 60}ms` }}>
                 <div className="flex items-start justify-between mb-5">
                   <div>
                     <h3 className="font-black text-[#1a1a2e] text-base">{award.name}</h3>

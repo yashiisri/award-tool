@@ -56,10 +56,10 @@ export default function ManageUsers() {
           { label: 'Total Users', value: users.length, color: '#00338D', bg: '#EEF2FA', icon: Users },
           { label: 'Jury Members', value: juryUsers.length, color: '#0091DA', bg: '#EAF5FC', icon: Users },
           { label: 'Head Jury', value: headJuryUsers.length, color: '#7F3F98', bg: '#F5EEF8', icon: Crown },
-        ].map(({ label, value, color, bg, icon: Icon }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        ].map(({ label, value, color, bg, icon: Icon }, i) => (
+          <div key={label} className="group animate-fade-in-up hover-lift bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md" style={{ animationDelay: `${i * 60}ms` }}>
             <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: bg }}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center icon-pop" style={{ backgroundColor: bg }}>
                 <Icon className="w-4 h-4" style={{ color }} />
               </div>
             </div>
@@ -77,8 +77,8 @@ export default function ManageUsers() {
             <h3 className="font-black text-[#1a1a2e] text-sm uppercase tracking-wider">Head Jury</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {headJuryUsers.map(u => (
-              <div key={u.id} className="bg-white border border-[#7F3F98]/15 rounded-2xl p-5 shadow-sm">
+            {headJuryUsers.map((u, i) => (
+              <div key={u.id} className="animate-fade-in-up hover-lift bg-white border border-[#7F3F98]/15 rounded-2xl p-5 shadow-sm hover:shadow-md" style={{ animationDelay: `${i * 50}ms` }}>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 bg-[#7F3F98] rounded-xl flex items-center justify-center">
                     <span className="text-white font-black text-base">{u.username?.[0]?.toUpperCase()}</span>
@@ -106,8 +106,8 @@ export default function ManageUsers() {
             <h3 className="font-black text-[#1a1a2e] text-sm uppercase tracking-wider">Jury Members</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {juryUsers.map(u => (
-              <div key={u.id} className="bg-white border border-[#0091DA]/15 rounded-2xl p-5 shadow-sm">
+            {juryUsers.map((u, i) => (
+              <div key={u.id} className="animate-fade-in-up hover-lift bg-white border border-[#0091DA]/15 rounded-2xl p-5 shadow-sm hover:shadow-md" style={{ animationDelay: `${i * 50}ms` }}>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 bg-[#0091DA] rounded-xl flex items-center justify-center">
                     <span className="text-white font-black text-base">{u.username?.[0]?.toUpperCase()}</span>
@@ -139,8 +139,8 @@ export default function ManageUsers() {
 
       {/* Create User Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100">
+        <div className="animate-fade-in fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="animate-scale-in bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <div>
                 <h2 className="text-lg font-black text-[#1a1a2e]">Create New User</h2>

@@ -2,16 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
-  GripVertical, Trophy, Lock, CheckCircle,
-  Send, Building2, Briefcase, Info, ArrowLeft, Award, ArrowRight
+  Trophy, Lock, CheckCircle,
+  Send, Building2, Briefcase, ArrowLeft, Award, ArrowRight
 } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
-
-const POSITION_POINTS = [10, 8, 6, 5, 4, 3, 2, 1]
-function getPoints(index) {
-  return POSITION_POINTS[index] ?? 1
-}
 
 // ── Golden confetti burst ─────────────────────────────────────────────────────
 const GOLD_SHADES = [
@@ -79,23 +74,24 @@ function ConfettiBurst({ onDone }) {
   )
 }
 
-function PositionBadge({ index }) {
-  const medals = ['🥇', '🥈', '🥉']
-  const colors = [
-    'bg-amber-50 text-amber-600 border-amber-200',
-    'bg-gray-50 text-gray-500 border-gray-200',
-    'bg-orange-50 text-orange-500 border-orange-200',
-  ]
-  if (index < 3) {
+function ChoiceMedal({ rank }) {
+  if (rank === 1) {
     return (
-      <div className={`w-9 h-9 rounded-xl border flex items-center justify-center text-lg flex-shrink-0 ${colors[index]}`}>
-        {medals[index]}
+      <div className="w-9 h-9 rounded-xl border flex items-center justify-center text-lg flex-shrink-0 bg-amber-50 text-amber-600 border-amber-200">
+        🥇
+      </div>
+    )
+  }
+  if (rank === 2) {
+    return (
+      <div className="w-9 h-9 rounded-xl border flex items-center justify-center text-lg flex-shrink-0 bg-gray-50 text-gray-500 border-gray-200">
+        🥈
       </div>
     )
   }
   return (
     <div className="w-9 h-9 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center flex-shrink-0">
-      <span className="text-gray-400 font-bold text-xs">#{index + 1}</span>
+      <span className="text-gray-300 text-xs">—</span>
     </div>
   )
 }
@@ -107,15 +103,13 @@ export default function JuryRanking() {
 
   const [awardName, setAwardName] = useState('')
   const [nominees, setNominees] = useState([])
+  const [ranks, setRanks] = useState({}) // { [nomineeId]: 1 | 2 }
   const [submitted, setSubmitted] = useState(false)
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [votingOpen, setVotingOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
-  const [dragIdx, setDragIdx] = useState(null)
-  const [dragOverIdx, setDragOverIdx] = useState(null)
-  const dragNode = useRef(null)
 
   useEffect(() => {
     if (awardFromUrl) fetchData(awardFromUrl)
@@ -134,15 +128,15 @@ export default function JuryRanking() {
       const award = awardRes.data.find(a => a.id === awardId)
       setAwardName(award?.name || '')
       setVotingOpen(ctrlRes.data.voting_enabled || false)
+      setNominees(nomRes.data)
 
       if (rankRes.data && rankRes.data.rankings?.length > 0) {
         const rankMap = {}
         rankRes.data.rankings.forEach(r => { rankMap[r.nominee_id] = r.rank })
-        const ordered = [...nomRes.data].sort((a, b) => (rankMap[a.id] ?? 99) - (rankMap[b.id] ?? 99))
-        setNominees(ordered)
+        setRanks(rankMap)
         setSubmitted(true)
       } else {
-        setNominees(nomRes.data)
+        setRanks({})
         setSubmitted(false)
       }
     } catch (e) {
@@ -152,87 +146,29 @@ export default function JuryRanking() {
     }
   }
 
-  // ── Drag handlers ─────────────────────────────────────────────────────────────
-
-  const handleDragStart = (e, index) => {
-    dragNode.current = e.currentTarget
-    setDragIdx(index)
-    e.dataTransfer.effectAllowed = 'move'
-    setTimeout(() => { if (dragNode.current) dragNode.current.classList.add('opacity-40') }, 0)
-  }
-
-  const handleDragEnter = (e, index) => {
-    e.preventDefault()
-    if (index !== dragIdx) setDragOverIdx(index)
-  }
-
-  const handleDragOver = (e) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
-
-  const handleDrop = (e, dropIndex) => {
-    e.preventDefault()
-    if (dragIdx === null || dragIdx === dropIndex) return
-    const updated = [...nominees]
-    const [moved] = updated.splice(dragIdx, 1)
-    updated.splice(dropIndex, 0, moved)
-    setNominees(updated)
-    setDragIdx(null)
-    setDragOverIdx(null)
-  }
-
-  const handleDragEnd = () => {
-    if (dragNode.current) dragNode.current.classList.remove('opacity-40')
-    dragNode.current = null
-    setDragIdx(null)
-    setDragOverIdx(null)
-  }
-
-  // ── Touch drag (mobile) ───────────────────────────────────────────────────────
-  const touchStartY = useRef(null)
-  const touchStartIdx = useRef(null)
-
-  const handleTouchStart = (e, index) => {
-    touchStartY.current = e.touches[0].clientY
-    touchStartIdx.current = index
-  }
-
-  const handleTouchMove = (e) => {
-    e.preventDefault()
-    const y = e.touches[0].clientY
-    const items = document.querySelectorAll('[data-rank-item]')
-    let targetIdx = touchStartIdx.current
-    items.forEach((el, i) => {
-      const rect = el.getBoundingClientRect()
-      if (y >= rect.top && y <= rect.bottom) targetIdx = i
+  // Assign (or toggle off) a nominee's choice slot. Each slot (1st / 2nd) can
+  // only belong to one nominee at a time — picking it elsewhere moves it.
+  const setChoice = (nomineeId, rank) => {
+    if (!votingOpen || submitted) return
+    setRanks(prev => {
+      const next = {}
+      for (const [id, r] of Object.entries(prev)) {
+        if (id !== nomineeId && r !== rank) next[id] = r
+      }
+      if (prev[nomineeId] !== rank) next[nomineeId] = rank
+      return next
     })
-    setDragOverIdx(targetIdx)
   }
-
-  const handleTouchEnd = () => {
-    if (touchStartIdx.current !== null && dragOverIdx !== null && touchStartIdx.current !== dragOverIdx) {
-      const updated = [...nominees]
-      const [moved] = updated.splice(touchStartIdx.current, 1)
-      updated.splice(dragOverIdx, 0, moved)
-      setNominees(updated)
-    }
-    touchStartIdx.current = null
-    touchStartY.current = null
-    setDragOverIdx(null)
-  }
-
-  // ── Submit ranking ────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
     if (!votingOpen || !awardFromUrl) return
+    const rankings = Object.entries(ranks).map(([nominee_id, rank]) => ({ nominee_id, rank }))
+    if (rankings.length === 0) {
+      alert('Select at least your 1st choice nominee before submitting.')
+      return
+    }
     setSaving(true)
     try {
-      const rankings = nominees.map((nom, i) => ({
-        nominee_id: nom.id,
-        rank: i + 1,
-        points: getPoints(i),
-      }))
       await api.post('/jury/ranking', { award_id: awardFromUrl, rankings })
       setSubmitted(true)
       setShowConfetti(true)
@@ -247,12 +183,13 @@ export default function JuryRanking() {
   }
 
   const handleConfettiDone = useCallback(() => setShowConfetti(false), [])
+  const hasFirstChoice = Object.values(ranks).includes(1)
 
   // ── No award selected ─────────────────────────────────────────────────────────
   if (!awardFromUrl) {
     return (
       <div className="p-8">
-        <PageHeader icon={Trophy} title="Jury Ranking" subtitle="Drag nominees to set your preferred order" accent="#0091DA" light="#EAF5FC" />
+        <PageHeader icon={Trophy} title="Jury Ranking" subtitle="Choose your 1st and 2nd choice nominee" accent="#0091DA" light="#EAF5FC" />
         <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 text-center">
           <div className="w-14 h-14 bg-[#EAF5FC] rounded-2xl flex items-center justify-center mb-4">
             <Award className="w-7 h-7 text-[#0091DA]" />
@@ -304,7 +241,7 @@ export default function JuryRanking() {
       <PageHeader
         icon={Trophy}
         title="Jury Ranking"
-        subtitle="Drag nominees to set your preferred order — position determines points"
+        subtitle="Choose your 1st and 2nd choice nominee for this award"
         accent="#0091DA"
         light="#EAF5FC"
       />
@@ -342,7 +279,7 @@ export default function JuryRanking() {
           <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
           <div>
             <p className="font-semibold text-green-800 text-sm">Ranking submitted successfully</p>
-            <p className="text-green-600 text-xs mt-0.5">You may drag to reorder and resubmit at any time before voting closes.</p>
+            <p className="text-green-600 text-xs mt-0.5">Results will be published by the administrator once voting closes.</p>
           </div>
         </div>
       )}
@@ -362,40 +299,22 @@ export default function JuryRanking() {
         </div>
       )}
 
-      {/* Drag-and-drop ranking list */}
+      {/* Nominee choice list */}
       {!loading && nominees.length > 0 && (
         <div className="space-y-2 mb-6">
-          {nominees.map((nom, index) => {
-            const pts = getPoints(index)
-            const isDraggingOver = dragOverIdx === index
+          {nominees.map((nom) => {
+            const rank = ranks[nom.id]
+            const canEdit = votingOpen && !submitted
 
             return (
               <div
                 key={nom.id}
-                data-rank-item
-                draggable={votingOpen && !submitted}
-                onDragStart={e => handleDragStart(e, index)}
-                onDragEnter={e => handleDragEnter(e, index)}
-                onDragOver={handleDragOver}
-                onDrop={e => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                onTouchStart={e => handleTouchStart(e, index)}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
                 className={`
-                  flex items-center gap-3 p-4 bg-white rounded-xl border transition-all select-none
-                  ${isDraggingOver ? 'border-[#0091DA] shadow-lg scale-[1.01]' : 'border-gray-100'}
-                  ${votingOpen && !submitted ? 'cursor-grab active:cursor-grabbing hover:border-[#0091DA]/30 hover:shadow-md' : 'cursor-default'}
-                  ${submitted ? 'opacity-90' : ''}
+                  flex items-center gap-3 p-4 bg-white rounded-xl border transition-all
+                  ${rank === 1 ? 'border-amber-200 bg-amber-50/30' : rank === 2 ? 'border-gray-200 bg-gray-50/40' : 'border-gray-100'}
                 `}
               >
-                {/* Drag handle */}
-                <div className={`flex-shrink-0 ${votingOpen && !submitted ? 'text-gray-300 hover:text-gray-400' : 'text-gray-200'}`}>
-                  <GripVertical className="w-5 h-5" />
-                </div>
-
-                {/* Position badge */}
-                <PositionBadge index={index} />
+                <ChoiceMedal rank={rank} />
 
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#EAF5FC] to-[#dce8f5] flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -424,38 +343,34 @@ export default function JuryRanking() {
                   </div>
                 </div>
 
-                {/* Points badge */}
-                <div className={`
-                  flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl border
-                  ${index === 0 ? 'bg-amber-50 border-amber-200 text-amber-600' :
-                    index === 1 ? 'bg-gray-50 border-gray-200 text-gray-500' :
-                    index === 2 ? 'bg-orange-50 border-orange-200 text-orange-500' :
-                    'bg-[#EAF5FC] border-[#0091DA]/20 text-[#0091DA]'}
-                `}>
-                  <span className="text-lg font-black leading-none">{pts}</span>
-                  <span className="text-xs font-medium opacity-70">pts</span>
+                {/* Choice buttons */}
+                <div className="flex gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => setChoice(nom.id, 1)}
+                    disabled={!canEdit}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all disabled:cursor-not-allowed ${
+                      rank === 1
+                        ? 'bg-amber-500 border-amber-500 text-white'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-amber-300 disabled:hover:border-gray-200'
+                    }`}
+                  >
+                    🥇 1st Choice
+                  </button>
+                  <button
+                    onClick={() => setChoice(nom.id, 2)}
+                    disabled={!canEdit}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all disabled:cursor-not-allowed ${
+                      rank === 2
+                        ? 'bg-gray-500 border-gray-500 text-white'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    🥈 2nd Choice
+                  </button>
                 </div>
               </div>
             )
           })}
-        </div>
-      )}
-
-      {/* Points legend */}
-      {nominees.length > 0 && !loading && (
-        <div className="mb-6 p-4 bg-gray-50 border border-gray-100 rounded-xl">
-          <div className="flex items-center gap-2 mb-3">
-            <Info className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Points System</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {nominees.map((_, i) => (
-              <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-lg">
-                <span className="text-xs text-gray-500">#{i + 1}</span>
-                <span className="text-xs font-bold text-[#0091DA]">{getPoints(i)} pts</span>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
@@ -465,7 +380,7 @@ export default function JuryRanking() {
           onClick={submitted
             ? () => navigate(`/jury/results${awardFromUrl ? `?award=${awardFromUrl}` : ''}`)
             : handleSubmit}
-          disabled={saving}
+          disabled={saving || (!submitted && !hasFirstChoice)}
           className="w-full flex items-center justify-center gap-2 py-4 bg-[#00338D] text-white rounded-xl font-bold text-sm hover:bg-[#002a73] disabled:opacity-60 transition-all shadow-md"
         >
           {saving ? (

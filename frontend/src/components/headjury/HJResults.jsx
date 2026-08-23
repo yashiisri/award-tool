@@ -148,28 +148,6 @@ export default function HJResults() {
                       </div>
                     </div>
 
-                    {/* Points */}
-                    <div className="text-right flex-shrink-0">
-                      <div className={`font-black text-base ${i === 0 ? 'text-amber-500' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-orange-400' : 'text-[#7F3F98]'}`}>
-                        {nom.points}
-                      </div>
-                      <div className="text-gray-400 text-xs">pts</div>
-                    </div>
-
-                    {/* Bar */}
-                    <div className="w-20 flex-shrink-0">
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            i === 0 ? 'bg-gradient-to-r from-amber-400 to-yellow-300' :
-                            i === 1 ? 'bg-gradient-to-r from-gray-400 to-gray-300' :
-                            i === 2 ? 'bg-gradient-to-r from-orange-400 to-orange-300' :
-                            'bg-gradient-to-r from-[#7F3F98] to-[#5B2D6E]'
-                          }`}
-                          style={{ width: `${(nom.points / (nominees[0]?.points || 1)) * 100}%` }}
-                        />
-                      </div>
-                    </div>
                   </div>
                 ))}
               </div>

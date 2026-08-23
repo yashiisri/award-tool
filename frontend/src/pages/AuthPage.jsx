@@ -1,327 +1,57 @@
-// import { useState } from 'react'
-// import { useNavigate, useParams } from 'react-router-dom'
-// import { Shield, Crown, Users, Trophy, ArrowLeft, Eye, EyeOff, Mail, Lock, User } from 'lucide-react'
-// import api from '../api/axios'
-
-// const ROLE_CONFIG = {
-//   admin: {
-//     icon: Shield,
-//     title: 'Admin',
-//     subtitle: 'Platform Administrator',
-//     accent: '#1B3A6B',
-//     light: '#EEF2FA',
-//     heroGradient: 'from-[#1B3A6B] to-[#0D1F3C]',
-//   },
-//   head_jury: {
-//     icon: Crown,
-//     title: 'Head Jury',
-//     subtitle: 'Senior Evaluator',
-//     accent: '#7F3F98',
-//     light: '#F5EEF8',
-//     heroGradient: 'from-[#7F3F98] to-[#5B2D6E]',
-//   },
-//   jury: {
-//     icon: Users,
-//     title: 'Jury',
-//     subtitle: 'Evaluator',
-//     accent: '#0077B6',
-//     light: '#E8F4FD',
-//     heroGradient: 'from-[#0077B6] to-[#005a8a]',
-//   },
-// }
-
-// export default function AuthPage({ onLogin }) {
-//   const { role } = useParams()
-//   const navigate = useNavigate()
-//   const config = ROLE_CONFIG[role] || ROLE_CONFIG.jury
-
-//   const [mode, setMode] = useState('login')
-//   const [showPassword, setShowPassword] = useState(false)
-//   const [loading, setLoading] = useState(false)
-//   const [error, setError] = useState('')
-//   const [success, setSuccess] = useState('')
-//   const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' })
-
-//   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value })
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault()
-//     setError('')
-//     setSuccess('')
-
-//     if (mode === 'register' && form.password !== form.confirmPassword) {
-//       setError('Passwords do not match')
-//       return
-//     }
-
-//     setLoading(true)
-//     try {
-//       if (mode === 'register') {
-//         await api.post('/auth/register', { username: form.username, email: form.email, password: form.password, role })
-//         setSuccess('Account created! You can now sign in.')
-//         setMode('login')
-//         setForm({ username: '', email: '', password: '', confirmPassword: '' })
-//       } else {
-//         const { data } = await api.post('/auth/login', { username: form.username, password: form.password })
-//         onLogin(data.access_token, data.role, form.username)
-//       }
-//     } catch (err) {
-//       setError(err.response?.data?.detail || 'Something went wrong')
-//     } finally {
-//       setLoading(false)
-//     }
-//   }
-
-//   const Icon = config.icon
-
-//   return (
-//     <div className="min-h-screen bg-[#F4F5F7] flex">
-//       {/* Left panel — branded */}
-//       <div className={`hidden lg:flex lg:w-5/12 bg-gradient-to-br ${config.heroGradient} flex-col justify-between p-12 relative overflow-hidden`}>
-//         <div className="absolute inset-0 opacity-10"
-//           style={{
-//             backgroundImage: 'linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px)',
-//             backgroundSize: '40px 40px',
-//           }}
-//         />
-//         <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
-
-//         <div className="relative z-10 flex items-center gap-3">
-//           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-//             <Trophy className="w-5 h-5 text-white" />
-//           </div>
-//           <div>
-//             <span className="font-black text-white text-base">NobleCrest.AI</span>
-//             <div className="text-white/50 text-xs">Powered by KPMG</div>
-//           </div>
-//         </div>
-
-//         <div className="relative z-10">
-//           <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mb-8">
-//             <Icon className="w-10 h-10 text-white" />
-//           </div>
-//           <h2 className="text-5xl font-black text-white mb-4 leading-tight">{config.title}<br />Portal</h2>
-//           <p className="text-white/70 text-base leading-relaxed max-w-xs">{config.subtitle} — access your personalised dashboard and manage the awards process.</p>
-//         </div>
-
-//         <div className="relative z-10 text-white/40 text-xs">© 2025 KPMG. All rights reserved.</div>
-//       </div>
-
-//       {/* Right panel — form */}
-//       <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-14 bg-white">
-//         <div className="max-w-md w-full mx-auto">
-//           <button onClick={() => navigate('/select-role')} className="flex items-center gap-2 text-gray-400 hover:text-[#00338D] transition-colors mb-10 text-sm font-medium">
-//             <ArrowLeft className="w-4 h-4" />
-//             Back to role selection
-//           </button>
-
-//           {/* Mode toggle */}
-//           <div className="flex bg-gray-100 rounded-xl p-1 mb-8">
-//             {['login', 'register'].map((m) => (
-//               <button
-//                 key={m}
-//                 onClick={() => { setMode(m); setError(''); setSuccess('') }}
-//                 className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all"
-//                 style={mode === m ? { backgroundColor: config.accent, color: 'white' } : { color: '#6b7280' }}
-//               >
-//                 {m === 'login' ? 'Sign In' : 'Register'}
-//               </button>
-//             ))}
-//           </div>
-
-//           <div className="mb-8">
-//             <h1 className="text-3xl font-black text-[#1a1a2e] mb-1">
-//               {mode === 'login' ? 'Welcome back' : 'Create account'}
-//             </h1>
-//             <p className="text-gray-400 text-sm">
-//               {mode === 'login' ? `Sign in to your ${config.title} account` : `Register as ${config.title} to get started`}
-//             </p>
-//           </div>
-
-//           <form onSubmit={handleSubmit} className="space-y-4">
-//             <div className="relative">
-//               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-//               <input
-//                 type="text"
-//                 placeholder="Username"
-//                 value={form.username}
-//                 onChange={set('username')}
-//                 className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all text-sm"
-//                 style={{ '--tw-ring-color': config.accent }}
-//                 onFocus={e => e.target.style.boxShadow = `0 0 0 2px ${config.accent}40`}
-//                 onBlur={e => e.target.style.boxShadow = ''}
-//                 required
-//               />
-//             </div>
-
-//             {mode === 'register' && (
-//               <div className="relative">
-//                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-//                 <input
-//                   type="email"
-//                   placeholder="Email address"
-//                   value={form.email}
-//                   onChange={set('email')}
-//                   className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none transition-all text-sm"
-//                   onFocus={e => e.target.style.boxShadow = `0 0 0 2px ${config.accent}40`}
-//                   onBlur={e => e.target.style.boxShadow = ''}
-//                   required
-//                 />
-//               </div>
-//             )}
-
-//             <div className="relative">
-//               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-//               <input
-//                 type={showPassword ? 'text' : 'password'}
-//                 placeholder="Password"
-//                 value={form.password}
-//                 onChange={set('password')}
-//                 className="w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none transition-all text-sm"
-//                 onFocus={e => e.target.style.boxShadow = `0 0 0 2px ${config.accent}40`}
-//                 onBlur={e => e.target.style.boxShadow = ''}
-//                 required
-//               />
-//               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-//                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-//               </button>
-//             </div>
-
-//             {mode === 'register' && (
-//               <div className="relative">
-//                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-//                 <input
-//                   type={showPassword ? 'text' : 'password'}
-//                   placeholder="Confirm password"
-//                   value={form.confirmPassword}
-//                   onChange={set('confirmPassword')}
-//                   className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none transition-all text-sm"
-//                   onFocus={e => e.target.style.boxShadow = `0 0 0 2px ${config.accent}40`}
-//                   onBlur={e => e.target.style.boxShadow = ''}
-//                   required
-//                 />
-//               </div>
-//             )}
-
-//             {error && <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">{error}</div>}
-//             {success && <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">{success}</div>}
-
-//             <button
-//               type="submit"
-//               disabled={loading}
-//               className="w-full py-4 rounded-xl font-bold text-sm text-white hover:opacity-90 transition-opacity shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-//               style={{ backgroundColor: config.accent }}
-//             >
-//               {loading ? (
-//                 <span className="flex items-center justify-center gap-2">
-//                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-//                   {mode === 'login' ? 'Signing in...' : 'Creating account...'}
-//                 </span>
-//               ) : (
-//                 mode === 'login' ? 'Sign In' : 'Create Account'
-//               )}
-//             </button>
-//           </form>
-
-//           <p className="text-center text-gray-400 text-sm mt-6">
-//             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-//             <button
-//               onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setSuccess('') }}
-//               className="font-semibold hover:underline"
-//               style={{ color: config.accent }}
-//             >
-//               {mode === 'login' ? 'Register here' : 'Sign in'}
-//             </button>
-//           </p>
-//         </div>
-//       </div>
-//     </div>
-//   )
-// }
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Shield, Crown, Users, Trophy, ArrowLeft, Eye, EyeOff, Mail, Lock, User, Sparkles, ChevronRight, Star } from 'lucide-react'
+import { Shield, Crown, Users, Trophy, ArrowLeft, Eye, EyeOff, Mail, Lock, User, ChevronRight } from 'lucide-react'
 import api from '../api/axios'
 
-/* ─── Role Config ──────────────────────────────────────────────── */
 const ROLE_CONFIG = {
   admin: {
     icon: Shield,
     title: 'Admin',
     subtitle: 'Platform Administrator',
-    accent: '#1B3A6B',
-    gradient: 'linear-gradient(135deg, #1B3A6B 0%, #2d5bb9 60%, #5b83d7 100%)',
-    soft: 'linear-gradient(135deg, #eef3ff 0%, #dde8ff 50%, #c8d9ff 100%)',
-    glow: '#2d5bb9',
-    tag: '#dde8ff',
-    tagText: '#1B3A6B',
+    accent: '#00338D',
+    gradient: 'linear-gradient(135deg, #00338D 0%, #0055A8 100%)',
   },
   head_jury: {
     icon: Crown,
     title: 'Head Jury',
     subtitle: 'Senior Evaluator',
-    accent: '#6b21a8',
-    gradient: 'linear-gradient(135deg, #6b21a8 0%, #9333ea 60%, #c084fc 100%)',
-    soft: 'linear-gradient(135deg, #f5f0ff 0%, #ede0ff 50%, #dcc8ff 100%)',
-    glow: '#9333ea',
-    tag: '#ede0ff',
-    tagText: '#6b21a8',
+    accent: '#6D28D9',
+    gradient: 'linear-gradient(135deg, #6D28D9 0%, #8B5CF6 100%)',
   },
   jury: {
     icon: Users,
     title: 'Jury',
     subtitle: 'Evaluator',
-    accent: '#0369a1',
-    gradient: 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 60%, #38bdf8 100%)',
-    soft: 'linear-gradient(135deg, #f0f9ff 0%, #ddf3ff 50%, #bae8ff 100%)',
-    glow: '#0ea5e9',
-    tag: '#ddf3ff',
-    tagText: '#0369a1',
+    accent: '#0369A1',
+    gradient: 'linear-gradient(135deg, #0369A1 0%, #0EA5E9 100%)',
   },
 }
 
-/* ─── Floating Orb ─────────────────────────────────────────────── */
-function Orb({ size, top, left, right, bottom, color, delay, blur = 80 }) {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: color,
-        top, left, right, bottom,
-        filter: `blur(${blur}px)`,
-        animation: `orbDrift 14s ease-in-out ${delay}s infinite`,
-        pointerEvents: 'none',
-      }}
-    />
-  )
-}
-
-/* ─── Input Field ──────────────────────────────────────────────── */
-function Field({ icon: Icon, accent, glow, delay, children, ...props }) {
+function Field({ icon: Icon, accent, delay, children, ...props }) {
   const [focused, setFocused] = useState(false)
   return (
-    <div style={{ animation: `riseIn .45s ease both ${delay}s`, opacity: 0 }} className="relative">
-      <div
-        className="absolute inset-0 rounded-2xl pointer-events-none transition-all duration-400"
-        style={{
-          boxShadow: focused ? `0 0 0 2.5px ${glow}55, 0 4px 20px ${glow}18` : `0 0 0 1.5px rgba(0,0,0,0.08)`,
-        }}
+    <div style={{ position: 'relative', animation: `riseIn 0.4s ease both ${delay}s` }}>
+      <Icon
+        size={16}
+        style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: focused ? accent : '#94A3B8', transition: 'color 0.2s ease' }}
       />
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
-        <Icon className="w-4 h-4 transition-colors duration-300" style={{ color: focused ? glow : '#94a3b8' }} />
-      </div>
       <input
         {...props}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="w-full pl-11 pr-4 py-4 rounded-2xl text-sm outline-none transition-all duration-300"
         style={{
-          background: focused ? '#fff' : '#f8fafc',
-          color: '#1e293b',
-          fontFamily: "'Plus Jakarta Sans', sans-serif",
+          width: '100%',
+          padding: '13px 16px 13px 40px',
+          borderRadius: 10,
+          border: `1.5px solid ${focused ? accent : '#E2E8F0'}`,
+          background: focused ? 'white' : '#F8FAFC',
+          color: '#0F172A',
+          fontSize: 14,
+          fontFamily: 'inherit',
+          outline: 'none',
+          boxShadow: focused ? `0 0 0 3px ${accent}18` : 'none',
+          transition: 'all 0.2s ease',
+          boxSizing: 'border-box',
         }}
       />
       {children}
@@ -329,7 +59,6 @@ function Field({ icon: Icon, accent, glow, delay, children, ...props }) {
   )
 }
 
-/* ─── Main ─────────────────────────────────────────────────────── */
 export default function AuthPage({ onLogin }) {
   const { role } = useParams()
   const navigate = useNavigate()
@@ -341,11 +70,8 @@ export default function AuthPage({ onLogin }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' })
-  const [mounted, setMounted] = useState(false)
 
   const set = (f) => (e) => setForm({ ...form, [f]: e.target.value })
-
-  useEffect(() => { setTimeout(() => setMounted(true), 30) }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -366,344 +92,198 @@ export default function AuthPage({ onLogin }) {
       }
     } catch (err) {
       setError(err.response?.data?.detail || 'Something went wrong')
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const Icon = cfg.icon
 
   return (
-    <>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#F7F9FC',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 24,
+      }}
+    >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap');
-
-        @keyframes orbDrift {
-          0%,100% { transform: translate(0,0) scale(1); }
-          33%      { transform: translate(18px,-22px) scale(1.04); }
-          66%      { transform: translate(-14px,16px) scale(0.97); }
-        }
-        @keyframes riseIn {
-          from { opacity:0; transform:translateY(12px); }
-          to   { opacity:1; transform:translateY(0); }
-        }
-        @keyframes cardIn {
-          from { opacity:0; transform:scale(.96) translateY(18px); }
-          to   { opacity:1; transform:scale(1) translateY(0); }
-        }
-        @keyframes fadeSlide {
-          from { opacity:0; transform:translateX(8px); }
-          to   { opacity:1; transform:translateX(0); }
-        }
-        @keyframes shimmer {
-          0%   { background-position:-200% center; }
-          100% { background-position:200% center; }
-        }
-        @keyframes spin {
-          to { transform:rotate(360deg); }
-        }
-        @keyframes leftIn {
-          from { opacity:0; transform:translateX(-18px); }
-          to   { opacity:1; transform:translateX(0); }
-        }
-        @keyframes popIn {
-          from { opacity:0; transform:scale(.85); }
-          to   { opacity:1; transform:scale(1); }
-        }
-
-        input::placeholder { color:#94a3b8; }
-        input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 30px #f8fafc inset !important;
-          -webkit-text-fill-color: #1e293b !important;
-        }
-        .shimmer-overlay {
-          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
-          background-size: 200% auto;
-          animation: shimmer 2.2s linear infinite;
-        }
+        @keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes floatSoft { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(10px, -14px); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        input::placeholder { color: #94A3B8; }
+        .auth-icon-box { animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both; }
+        .auth-submit-btn { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .auth-submit-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.15); }
       `}</style>
 
-      {/* ── Full page ── */}
       <div
-        className="min-h-screen flex items-center justify-center relative overflow-hidden"
-        style={{ background: cfg.soft, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        style={{
+          width: '100%', maxWidth: 960, borderRadius: 20, overflow: 'hidden',
+          background: 'white', border: '1px solid #E8ECF0',
+          boxShadow: '0 24px 64px rgba(15,23,42,0.08)',
+          display: 'flex', minHeight: 580,
+          animation: 'cardIn 0.5s ease both',
+        }}
+        className="auth-card"
       >
-        {/* Soft orbs in background */}
-        <Orb size="520px" top="-180px" right="-140px" color={`${cfg.glow}22`} delay={0} />
-        <Orb size="380px" bottom="-120px" left="-100px" color={`${cfg.glow}18`} delay={-5} />
-        <Orb size="260px" top="35%" left="25%" color={`${cfg.glow}12`} delay={-9} blur={60} />
+        <style>{`@media (max-width: 900px) { .auth-card { flex-direction: column !important; } .auth-panel { display: none !important; } }`}</style>
 
-        {/* Subtle mesh texture */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage: `radial-gradient(circle, ${cfg.glow}12 1px, transparent 1px)`,
-            backgroundSize: '36px 36px',
-          }}
-        />
+        {/* Branded panel */}
+        <div className="auth-panel" style={{
+          width: '42%', flexShrink: 0, background: cfg.gradient,
+          padding: 44, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', bottom: -100, right: -100, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', animation: 'floatSoft 14s ease-in-out infinite' }} />
 
-        {/* ── Card ── */}
-        <div
-          className="relative w-full max-w-5xl mx-4 rounded-[2.5rem] overflow-hidden"
-          style={{
-            background: 'rgba(255,255,255,0.82)',
-            backdropFilter: 'blur(40px)',
-            boxShadow: `0 32px 80px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.8), 0 0 60px ${cfg.glow}18`,
-            animation: mounted ? 'cardIn .65s cubic-bezier(.16,1,.3,1) forwards' : 'none',
-          }}
-        >
-          <div className="flex min-h-[640px]">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Trophy size={17} color="white" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, color: 'white', fontSize: 14, letterSpacing: '-0.01em' }}>NobleCrest.AI</div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Powered by KPMG</div>
+            </div>
+          </div>
 
-            {/* ── Left branded panel ── */}
-            <div
-              className="hidden lg:flex w-[42%] flex-col justify-between p-12 relative overflow-hidden"
-              style={{ background: cfg.gradient }}
+          <div style={{ position: 'relative' }}>
+            <div className="auth-icon-box" style={{
+              width: 64, height: 64, borderRadius: 16, marginBottom: 24,
+              background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon size={28} color="white" />
+            </div>
+            <h2 style={{ fontSize: 32, fontWeight: 800, color: 'white', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 10 }}>
+              {cfg.title} Portal
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, lineHeight: 1.7, maxWidth: 260 }}>
+              {cfg.subtitle} — access your personalised dashboard and manage the awards process.
+            </p>
+          </div>
+
+          <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, position: 'relative' }}>© 2026 KPMG. All rights reserved.</div>
+        </div>
+
+        {/* Form panel */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '48px 56px' }}>
+          <div style={{ maxWidth: 380, width: '100%', margin: '0 auto' }}>
+            <button
+              onClick={() => navigate('/select-role')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
+                color: '#94A3B8', fontSize: 13, fontWeight: 500, cursor: 'pointer', padding: 0, marginBottom: 28,
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = cfg.accent}
+              onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
             >
-              {/* Noise/grain overlay */}
-              <div
-                className="absolute inset-0 pointer-events-none opacity-[0.04]"
-                style={{
-                  backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.75\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
-                  backgroundSize: '180px 180px',
-                }}
-              />
-              {/* Large circle decoration */}
-              <div
-                className="absolute -bottom-32 -right-32 w-[420px] h-[420px] rounded-full pointer-events-none"
-                style={{ background: 'rgba(255,255,255,0.07)' }}
-              />
-              <div
-                className="absolute top-24 -right-16 w-[200px] h-[200px] rounded-full pointer-events-none"
-                style={{ background: 'rgba(255,255,255,0.06)' }}
-              />
+              <ArrowLeft size={14} /> Back to role selection
+            </button>
 
-              {/* Logo */}
-              <div className="relative z-10 flex items-center gap-3" style={{ animation: 'leftIn .7s ease .1s both' }}>
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.25)' }}
-                >
-                  <Trophy className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <div className="font-bold text-white text-[15px]" style={{ fontFamily: "'Clash Display', sans-serif", letterSpacing: '-0.02em' }}>
-                    NobleCrest.AI
-                  </div>
-                  <div className="text-white/50 text-[10px] tracking-widest uppercase mt-0.5">Powered by KPMG</div>
-                </div>
-              </div>
-
-              {/* Hero */}
-              <div className="relative z-10">
-                {/* Icon */}
-                <div
-                  className="w-[88px] h-[88px] rounded-3xl flex items-center justify-center mb-8 relative"
-                  style={{
-                    background: 'rgba(255,255,255,0.18)',
-                    border: '1px solid rgba(255,255,255,0.28)',
-                    backdropFilter: 'blur(12px)',
-                    boxShadow: '0 16px 48px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.3)',
-                    animation: 'popIn .6s ease .25s both',
-                  }}
-                >
-                  <Icon className="w-10 h-10 text-white" />
-                  <div
-                    className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.9)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
-                  >
-                    <Star className="w-3 h-3" style={{ color: cfg.accent }} />
-                  </div>
-                </div>
-
-                <div style={{ animation: 'leftIn .7s ease .35s both' }}>
-                  <h2
-                    className="text-5xl font-bold text-white leading-tight mb-3"
-                    style={{ fontFamily: "'Clash Display', sans-serif", letterSpacing: '-0.04em' }}
-                  >
-                    {cfg.title}<br />
-                    <span className="text-white/45">Portal</span>
-                  </h2>
-                  <p className="text-white/65 text-sm leading-relaxed max-w-[240px]">
-                    {cfg.subtitle} — access your personalised dashboard and manage the awards process.
-                  </p>
-                </div>
-
-                {/* Pills */}
-                <div className="flex gap-2 mt-7 flex-wrap" style={{ animation: 'leftIn .7s ease .45s both' }}>
-                  {['Secure Access', 'Real-time', 'Verified'].map((label) => (
-                    <div
-                      key={label}
-                      className="px-3 py-1.5 rounded-full text-[11px] font-semibold text-white/80"
-                      style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.2)' }}
-                    >
-                      {label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="relative z-10 text-white/30 text-[11px]">© 2026 KPMG. All rights reserved.</div>
-            </div>
-
-            {/* ── Right form panel ── */}
-            <div className="flex-1 flex flex-col justify-center px-8 py-12 lg:px-14 bg-white/60">
-              <div className="max-w-[400px] w-full mx-auto">
-
-                {/* Back */}
+            <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: 10, padding: 4, marginBottom: 28 }}>
+              {['login', 'register'].map((m) => (
                 <button
-                  onClick={() => navigate('/select-role')}
-                  className="flex items-center gap-2 text-sm font-medium mb-10 group transition-colors duration-200"
-                  style={{ color: '#94a3b8' }}
-                  onMouseEnter={e => e.currentTarget.style.color = cfg.accent}
-                  onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
-                >
-                  <ArrowLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
-                  Back to role selection
-                </button>
-
-                {/* Toggle */}
-                <div
-                  className="flex rounded-2xl p-1 mb-8"
+                  key={m}
+                  onClick={() => { setMode(m); setError(''); setSuccess('') }}
                   style={{
-                    background: '#f1f5f9',
-                    animation: 'riseIn .45s ease .05s both',
+                    flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                    fontSize: 13.5, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s ease',
+                    background: mode === m ? cfg.accent : 'transparent',
+                    color: mode === m ? 'white' : '#64748B',
                   }}
                 >
-                  {['login', 'register'].map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => { setMode(m); setError(''); setSuccess('') }}
-                      className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all duration-300 relative overflow-hidden"
-                      style={
-                        mode === m
-                          ? {
-                              background: cfg.gradient,
-                              color: '#fff',
-                              boxShadow: `0 4px 18px ${cfg.glow}35`,
-                            }
-                          : { color: '#94a3b8' }
-                      }
-                    >
-                      {mode === m && <span className="shimmer-overlay absolute inset-0 pointer-events-none" />}
-                      {m === 'login' ? 'Sign In' : 'Register'}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Heading */}
-                <div
-                  key={mode}
-                  className="mb-7"
-                  style={{ animation: 'fadeSlide .3s ease both' }}
-                >
-                  <h1
-                    className="text-[2rem] font-bold mb-1"
-                    style={{ fontFamily: "'Clash Display', sans-serif", letterSpacing: '-0.04em', color: '#0f172a' }}
-                  >
-                    {mode === 'login' ? 'Welcome back' : 'Create account'}
-                  </h1>
-                  <p className="text-sm text-slate-400">
-                    {mode === 'login'
-                      ? `Sign in to your ${cfg.title} account`
-                      : `Register as ${cfg.title} to get started`}
-                  </p>
-                </div>
-
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  <Field icon={User} accent={cfg.accent} glow={cfg.glow} delay={0.12}
-                    type="text" placeholder="Username" value={form.username} onChange={set('username')} required />
-
-                  {mode === 'register' && (
-                    <Field icon={Mail} accent={cfg.accent} glow={cfg.glow} delay={0.18}
-                      type="email" placeholder="Email address" value={form.email} onChange={set('email')} required />
-                  )}
-
-                  <Field icon={Lock} accent={cfg.accent} glow={cfg.glow} delay={0.22}
-                    type={showPw ? 'text' : 'password'} placeholder="Password" value={form.password} onChange={set('password')} required>
-                    <button
-                      type="button"
-                      onClick={() => setShowPw(!showPw)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors duration-200"
-                    >
-                      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </Field>
-
-                  {mode === 'register' && (
-                    <Field icon={Lock} accent={cfg.accent} glow={cfg.glow} delay={0.27}
-                      type={showPw ? 'text' : 'password'} placeholder="Confirm password" value={form.confirmPassword} onChange={set('confirmPassword')} required />
-                  )}
-
-                  {error && (
-                    <div
-                      className="px-4 py-3 rounded-2xl text-sm"
-                      style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#ef4444', animation: 'riseIn .3s ease both' }}
-                    >
-                      {error}
-                    </div>
-                  )}
-                  {success && (
-                    <div
-                      className="px-4 py-3 rounded-2xl text-sm"
-                      style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', animation: 'riseIn .3s ease both' }}
-                    >
-                      {success}
-                    </div>
-                  )}
-
-                  {/* Submit button */}
-                  <div style={{ animation: 'riseIn .45s ease .32s both', opacity: 0, paddingTop: '4px' }}>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-4 rounded-2xl font-semibold text-sm text-white relative overflow-hidden group flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{
-                        background: cfg.gradient,
-                        boxShadow: `0 8px 32px ${cfg.glow}35`,
-                        fontFamily: "'Plus Jakarta Sans', sans-serif",
-                      }}
-                      onMouseEnter={e => !loading && (e.currentTarget.style.boxShadow = `0 12px 40px ${cfg.glow}55, 0 2px 0 rgba(255,255,255,0.2) inset`)}
-                      onMouseLeave={e => (e.currentTarget.style.boxShadow = `0 8px 32px ${cfg.glow}35`)}
-                    >
-                      <span className="shimmer-overlay absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      {loading ? (
-                        <>
-                          <div
-                            className="w-4 h-4 border-2 rounded-full"
-                            style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin .7s linear infinite' }}
-                          />
-                          {mode === 'login' ? 'Signing in…' : 'Creating account…'}
-                        </>
-                      ) : (
-                        <>
-                          {mode === 'login' ? 'Sign In' : 'Create Account'}
-                          <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-
-                <p
-                  className="text-center text-sm mt-5 text-slate-400"
-                  style={{ animation: 'riseIn .45s ease .38s both', opacity: 0 }}
-                >
-                  {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-                  <button
-                    onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setSuccess('') }}
-                    className="font-semibold transition-colors duration-200"
-                    style={{ color: cfg.accent }}
-                    onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
-                    onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
-                  >
-                    {mode === 'login' ? 'Register here' : 'Sign in'}
-                  </button>
-                </p>
-
-              </div>
+                  {m === 'login' ? 'Sign In' : 'Register'}
+                </button>
+              ))}
             </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', marginBottom: 4 }}>
+                {mode === 'login' ? 'Welcome back' : 'Create account'}
+              </h1>
+              <p style={{ fontSize: 13.5, color: '#94A3B8' }}>
+                {mode === 'login' ? `Sign in to your ${cfg.title} account` : `Register as ${cfg.title} to get started`}
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Field icon={User} accent={cfg.accent} delay={0.05}
+                type="text" placeholder="Username" value={form.username} onChange={set('username')} required />
+
+              {mode === 'register' && (
+                <Field icon={Mail} accent={cfg.accent} delay={0.1}
+                  type="email" placeholder="Email address" value={form.email} onChange={set('email')} required />
+              )}
+
+              <Field icon={Lock} accent={cfg.accent} delay={0.15}
+                type={showPw ? 'text' : 'password'} placeholder="Password" value={form.password} onChange={set('password')} required>
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 0, display: 'flex' }}
+                >
+                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </Field>
+
+              {mode === 'register' && (
+                <Field icon={Lock} accent={cfg.accent} delay={0.2}
+                  type={showPw ? 'text' : 'password'} placeholder="Confirm password" value={form.confirmPassword} onChange={set('confirmPassword')} required />
+              )}
+
+              {error && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#EF4444', fontSize: 13 }}>
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#16A34A', fontSize: 13 }}>
+                  {success}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="auth-submit-btn"
+                style={{
+                  width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
+                  background: cfg.gradient, color: 'white', fontSize: 14, fontWeight: 700,
+                  fontFamily: 'inherit', cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1, marginTop: 4,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                {loading ? (
+                  <>
+                    <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.35)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                    {mode === 'login' ? 'Signing in…' : 'Creating account…'}
+                  </>
+                ) : (
+                  <>
+                    {mode === 'login' ? 'Sign In' : 'Create Account'} <ChevronRight size={15} />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p style={{ textAlign: 'center', fontSize: 13, color: '#94A3B8', marginTop: 20 }}>
+              {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+              <button
+                onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setSuccess('') }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, color: cfg.accent, fontSize: 13, fontFamily: 'inherit' }}
+              >
+                {mode === 'login' ? 'Register here' : 'Sign in'}
+              </button>
+            </p>
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }

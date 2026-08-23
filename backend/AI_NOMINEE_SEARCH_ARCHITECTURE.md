@@ -1,211 +1,175 @@
-# AI Nominee Search Engine — Architecture
+# AI Nominee Research Engine — Architecture
 
 ## Problem Solved
-- **Before**: Mock data with 8 hardcoded nominees
-- **After**: Real AI-powered research engine that discovers high-profile business leaders
 
-## Core Strategy: Two-Track Approach
+The previous implementation asked an LLM (Groq Llama 3.3) to *invent* real people's
+names from its training data, then tried to fuzzy-match those invented names against
+scraped RSS feeds. The LLM was the source of candidate identity — a direct
+hallucination risk, and hardcoded to Indian business leaders regardless of the award's
+actual criteria.
 
-### Track A: AI-Direct (Primary, Reliable)
-1. **Llama 3.3** generates 20+ real candidate names with roles/orgs
-2. **Wikipedia** validates each name (fetches summary, photo, description)
-3. Only candidates with substantial Wikipedia pages pass through
+This version discovers candidates from **real web evidence** and uses AI only to
+structure the award's criteria and (optionally) phrase a rationale — never to
+originate a person's identity.
 
-**Why this works:**
-- Llama 3.3 knows Forbes/Fortune 500 leaders from training data
-- Wikipedia validation ensures they're real, verifiable people
-- No dependency on fragile web scraping
-
-### Track B: Web-Search (Supplementary, Best-Effort)
-1. **Llama 3.3** generates targeted DuckDuckGo queries
-2. **DuckDuckGo** HTML scraping extracts candidate names from results
-3. **Wikipedia** enriches each name with full profile data
-
-**Why this is supplementary:**
-- Web scraping is brittle (HTML changes, rate limits, parsing failures)
-- If Track B fails entirely, Track A still succeeds
-- Provides additional candidates beyond Llama's training cutoff
-
-## Service Architecture
+## Core Principle
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  nominee_service.py (Orchestration)                         │
-│  • run_ai_nominee_search()                                  │
-│  • extract_and_store_metrics()                              │
-└────────────┬────────────────────────────────────────────────┘
-             │
-             ├──► ai_service.py (Groq Llama 3.3)
-             │    • extract_award_metrics()
-             │    • generate_candidate_names()  ◄── PRIMARY
-             │    • generate_search_queries()
-             │    • rank_candidates()
-             │
-             ├──► wikipedia_service.py (Wikipedia API)
-             │    • fetch_summary()
-             │    • search_pages()
-             │    • batch_fetch_summaries()
-             │    ✓ User-Agent header (fixes 403)
-             │    ✓ Retry logic with backoff
-             │    ✓ Graceful error handling
-             │
-             └──► search_service.py (DuckDuckGo + helpers)
-                  • duckduckgo_search()
-                  • extract_candidate_names_from_results()
-                  • enrich_candidates_with_wikipedia()
+Old:  LLM → names → fuzzy-match against scraped pages → LLM scores its own invented list
+
+New:  award criteria → research plan → broad web search → candidate discovery
+      → entity resolution → evidence collection → verification → deterministic scoring
 ```
 
-## Pipeline Flow
+## Pipeline
 
 ```
-1. Award Selected
-   ↓
-2. Fetch/Extract Metrics (Llama 3.3)
-   ↓
-3. ┌─ Track A: Llama → Names → Wikipedia ─┐
-   │                                        │
-   └─ Track B: Queries → DDG → Wikipedia ──┤
-                                            ↓
-4. Merge + Deduplicate
-   ↓
-5. Strict High-Profile Filter
-   • Must have Forbes/CEO/Chairman/billionaire signals
-   • Must have ≥200 char Wikipedia summary
-   • Must NOT have small/local business keywords
-   ↓
-6. AI Ranking (Llama 3.3)
-   • Confidence score 0.0–1.0
-   • Relevance reason per candidate
-   ↓
-7. Return Top-N Payloads
+backend/services/
+├── ai_service.py                    Groq Llama 3.3 — criteria extraction & rationale only
+├── nominee_service.py               Entry point (POST /admin/ai-search-nominees)
+├── wikipedia_service.py             Wikipedia REST API — enrichment only, never a gate
+└── research/
+    ├── research_orchestrator.py     Top-level pipeline, ties every stage together
+    ├── search_provider.py           Provider-agnostic interface + bounded-concurrency runner
+    ├── tavily_provider.py           Tavily Search API (primary)
+    ├── brave_provider.py            Brave Search API (optional secondary)
+    ├── query_generator.py           Criteria → dynamic discovery/candidate queries
+    ├── candidate_extractor.py       Extracts person mentions from real search results only
+    ├── entity_resolver.py           Multi-signal merge of mentions into unique people
+    ├── evidence_service.py          Stage-2 targeted per-candidate evidence collection
+    ├── ranking_service.py           Deterministic verification + transparent scoring
+    ├── source_quality.py            Domain-tier scoring (official > major press > Wikipedia > blogs)
+    └── cache_service.py             Mongo-backed cache with native TTL index
 ```
 
-## Key Fixes Applied
+## Flow
 
-### 1. Wikipedia 403 Errors — FIXED ✓
-**Problem:** `api.php` returned 403 Forbidden without User-Agent header
+1. **Research plan** — `ai_service.extract_research_criteria()` structures the award's
+   own title/description into `{industry, geography, leadership_requirements,
+   company_size, achievement_requirements, time_period, keywords, exclusions}`.
+   Nothing here is invented — only what's already in the award's text.
+2. **Discovery queries** — `query_generator.generate_discovery_queries()` expands the
+   plan into up to 16 queries via deterministic templates × industry-synonym expansion
+   (one LLM call to widen terminology, e.g. "Technology" → software/IT/AI/cloud/...).
+   No query is hardcoded to a specific geography.
+3. **Parallel search** — `search_provider.run_bounded_searches()` runs every query
+   against Tavily (and Brave, if configured) with bounded concurrency
+   (`RESEARCH_MAX_CONCURRENCY`), a Mongo-backed cache, and per-provider timeouts. A
+   provider without a key is skipped; a provider that errors is logged and ignored —
+   the pipeline never crashes because one external call failed.
+4. **Candidate discovery** — `candidate_extractor.extract_candidates()` pulls person
+   mentions directly from real search results (title/snippet/content). A name is only
+   a candidate if it appears in retrieved evidence near a leadership-role keyword.
+5. **Entity resolution** — `entity_resolver.resolve_entities()` merges mentions into
+   unique people using name + at least one corroborating signal (shared organization,
+   shared designation family, or overlapping source domain). Two people are never
+   merged on name similarity alone.
+6. **Evidence collection** — for the strongest ~10 candidates, `evidence_service`
+   runs targeted per-candidate queries (`"<name>" <org>`, `"<name>" CEO`,
+   `"<name>" Forbes`, etc.) and records structured `Evidence` items (source URL,
+   domain, quality tier, snippet, published date). Wikipedia is consulted here purely
+   as enrichment (photo, biography) — its absence never disqualifies a candidate.
+7. **Verification + scoring** — `ranking_service.py` is fully deterministic:
+   - `verify_candidate()` → `verified` / `partially_verified` / `unverified`, based on
+     independent source-domain count and average source quality.
+   - `score_candidate()` → six explainable 0–1 component scores
+     (`award_relevance`, `leadership_impact`, `industry_relevance`,
+     `achievement_strength`, `source_quality`, `recency`), combined into a weighted
+     `overall_score` (weights configurable in `config.py`, default 30/20/15/15/10/10).
+   - None of these numbers depend on the LLM, so scoring keeps working even if the
+     rationale-writing step fails.
+8. **Grounded rationale** — a best-effort LLM call writes a sentence explaining fit,
+   constrained to only use the collected evidence text. On failure, a deterministic
+   template (`ranking_service.deterministic_rationale()`) takes over — the admin
+   always sees a real, evidence-traceable explanation.
 
-**Solution:**
-- Created `wikipedia_service.py` with proper headers:
-  ```python
-  USER_AGENT = "AwardsNomineeAI/1.0 (support@awardsai.com)"
-  ```
-- All Wikipedia requests now include this header
-- Added retry logic with exponential backoff
-- Graceful fallback on failures
+## Honesty over quota
 
-### 2. Unreliable Name Extraction — FIXED ✓
-**Problem:** DuckDuckGo HTML scraping couldn't reliably extract names
+The old pipeline retried until it had *exactly* N nominees, which is exactly the
+pressure that invites hallucination. This version returns however many candidates
+genuinely pass verification (up to N) and reports why if it finds fewer — via
+`research_metadata.diagnostic` — rather than silently backfilling with fabricated
+people.
 
-**Solution:**
-- **Primary source**: Llama 3.3 directly generates candidate names
-- **Supplementary**: DuckDuckGo results (failures don't crash pipeline)
-- Wikipedia validates all names regardless of source
+## API
 
-### 3. Hallucination Prevention — FIXED ✓
-**Safeguards:**
-- Every candidate MUST have a Wikipedia page (≥200 chars)
-- Must match high-profile signals (Forbes, CEO, billionaire, etc.)
-- Exclude small/local business keywords
-- Confidence score ≥0.45 threshold
-- Admin previews results before saving
+`POST /admin/ai-search-nominees` (unchanged path, admin-only, same request body):
 
-## Configuration
-
-### Environment Variables
-```bash
-GROQ_KEY=your_groq_api_key_here  # Required — get from console.groq.com
+```json
+{ "award_id": "...", "num_results": 5 }
 ```
 
-### Dependencies (already installed)
-```
-groq==0.11.0
-httpx==0.27.2
-```
+Response:
 
-## API Endpoints
-
-### POST /api/admin/ai-search-nominees
-**Request:**
 ```json
 {
-  "award_id": "6a02ccc1b8f6fcf1b0620b96",
-  "num_results": 5
+  "candidates": [
+    {
+      "name": "...", "designation": "...", "organisation": "...", "photo_url": null,
+      "rationale": "...", "overall_score": 0.82,
+      "verification_status": "verified", "verification_confidence": 0.9,
+      "scores": { "award_relevance": 0.9, "leadership_impact": 0.8, "industry_relevance": 0.85,
+                  "achievement_strength": 0.7, "source_quality": 0.8, "recency": 1.0 },
+      "evidence": [ { "source_url": "...", "source_domain": "reuters.com", "source_type": "major_publication",
+                      "evidence_text": "...", "source_quality": 0.8 } ],
+      "sources": ["https://..."], "wikipedia_url": "https://...", "ai_generated": true,
+      "rationale_data": { "confidence_score": 0.82, "relevance_reason": "...", "source_links": [...], "ai_generated": true }
+    }
+  ],
+  "research_metadata": {
+    "queries_executed": 21, "sources_examined": 84, "candidates_discovered": 34,
+    "candidates_verified": 12, "research_duration_ms": 9840,
+    "providers_used": ["tavily"], "diagnostic": null
+  }
 }
 ```
 
-**Response:**
-```json
-[
-  {
-    "name": "Roshni Nadar Malhotra",
-    "designation": "Chairperson",
-    "organisation": "HCLTech",
-    "photo_url": "https://...",
-    "rationale": "Under her leadership, HCLTech...",
-    "rationale_data": {
-      "confidence_score": 0.92,
-      "relevance_reason": "Leads major IT conglomerate...",
-      "wikipedia_url": "https://en.wikipedia.org/...",
-      "source_links": ["https://..."],
-      "ai_generated": true
-    },
-    "sources": ["https://..."],
-    "ai_generated": true
-  }
-]
+`rationale_data` is kept alongside the new fields purely for backward compatibility —
+the frontend's `AIResultsModal` reads both.
+
+## Configuration
+
+```bash
+GROQ_KEY=...            # criteria extraction & rationale writing
+TAVILY_API_KEY=...      # required — primary search provider, get one at tavily.com
+BRAVE_API_KEY=          # optional secondary provider
 ```
 
-### GET /api/admin/awards/{award_id}/metrics
-Returns the AI-extracted evaluation metrics for an award.
+Tuning knobs (all in `config.py`, overridable via `.env`):
+`RESEARCH_MAX_CONCURRENCY`, `RESEARCH_SEARCH_TIMEOUT`, `RESEARCH_CACHE_TTL_SEARCH`,
+`RESEARCH_CACHE_TTL_EVIDENCE`, `RESEARCH_MIN_CONFIDENCE`,
+`RESEARCH_STAGE1_DISCOVERY_LIMIT`, `RESEARCH_STAGE2_VERIFY_LIMIT`,
+`RESEARCH_STAGE3_DEEP_LIMIT`, and the six `WEIGHT_*` scoring weights.
 
-## Frontend Integration
+## Failure handling
 
-**ViewNominees.jsx** now shows:
-- AI search loading state with animated brain icon
-- Preview modal with confidence badges before saving
-- Selectable candidates (admin can deselect any)
-- Wikipedia links + source attribution
-- "AI" badge on generated nominees
+- No search provider configured → 503 with a clear message, before any work starts
+- One query fails → logged, other queries continue
+- One evidence source fails → logged, other sources continue
+- Wikipedia unavailable → enrichment skipped, candidate unaffected
+- Grounded-rationale LLM call fails → deterministic template rationale used instead
+- No candidates found → 404 with a diagnostic explaining which stage produced nothing
 
-## Error Handling
+## Observability
 
-All failures are gracefully handled:
-- **Wikipedia 403** → Retry with backoff, then skip that candidate
-- **DuckDuckGo timeout** → Log warning, continue with Track A only
-- **Llama API error** → Raise 503 with clear message to user
-- **No candidates found** → Return 404 with actionable message
+Every stage logs via Python's `logging` module, tagged with a short `request_id` so a
+single research run's log lines can be grepped together: queries generated, results
+per query, candidates extracted/resolved/verified, and total duration. API keys are
+never logged.
 
-## Logging
+## Testing
 
-All services use Python's `logging` module:
-- `INFO`: Pipeline progress, candidate counts
-- `WARNING`: Recoverable failures (Wikipedia 404, DDG timeout)
-- `ERROR`: Critical failures (Wikipedia 403 after retries)
-- `DEBUG`: Detailed trace (query results, name extraction)
+See `backend/tests/test_research_pipeline.py` — query generation, entity resolution
+(merge and no-merge cases), source-quality scoring, verification status logic, and an
+end-to-end pipeline run against a mocked search provider. No test depends on a live
+API call.
 
-## Testing the Fix
+## Future enhancements
 
-1. Ensure `GROQ_KEY` is set in `backend/.env`
-2. Start backend: `uvicorn main:app --reload`
-3. Create an award with a descriptive description
-4. Click "AI Search Nominees"
-5. Verify:
-   - No Wikipedia 403 errors in logs
-   - Candidates appear in preview modal
-   - Each has confidence score + Wikipedia link
-   - Can select/deselect before saving
-
-## Performance
-
-- **Track A**: ~3-5 seconds (Llama + 20 Wikipedia fetches)
-- **Track B**: ~4-6 seconds (6 DDG queries + Wikipedia enrichment)
-- **Total**: ~5-8 seconds (tracks run in parallel)
-- **Caching**: Metrics stored in DB after first extraction
-
-## Future Enhancements
-
-- [ ] Cache Wikipedia summaries in Redis (reduce API calls)
-- [ ] Add more sources (LinkedIn, Crunchbase APIs)
-- [ ] Support region-specific searches (US, EU, Asia)
-- [ ] Admin feedback loop (mark candidates as good/bad to improve ranking)
+- [ ] Brave as a fully independent live second provider (works today once
+      `BRAVE_API_KEY` is set — not yet exercised in production)
+- [ ] LLM-assisted claim summarization per evidence item (currently template-based,
+      for cost/latency)
+- [ ] Admin feedback loop (mark candidates as good/bad to tune weights over time)
+- [ ] Region-specific provider routing (e.g. prefer Indian publications for
+      India-scoped awards) beyond query-level geography hints

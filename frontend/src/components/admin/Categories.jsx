@@ -37,7 +37,7 @@ export default function Categories() {
       />
 
       {categories.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-2xl border border-gray-100">
+        <div className="animate-fade-in-up flex flex-col items-center justify-center py-24 text-center bg-white rounded-2xl border border-gray-100">
           <div className="w-14 h-14 bg-[#EEF2FA] rounded-2xl flex items-center justify-center mb-4">
             <Award className="w-7 h-7 text-[#00338D]" />
           </div>
@@ -45,9 +45,9 @@ export default function Categories() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {categories.map((cat) => (
-            <div key={cat.id} className="group p-6 bg-white border border-gray-100 rounded-2xl hover:border-[#00338D]/20 hover:shadow-md transition-all">
-              <div className="w-10 h-10 bg-[#EEF2FA] rounded-xl flex items-center justify-center mb-4">
+          {categories.map((cat, i) => (
+            <div key={cat.id} className="group hover-lift animate-fade-in-up p-6 bg-white border border-gray-100 rounded-2xl hover:border-[#00338D]/20 hover:shadow-md transition-all" style={{ animationDelay: `${i * 50}ms` }}>
+              <div className="w-10 h-10 bg-[#EEF2FA] rounded-xl flex items-center justify-center mb-4 icon-pop">
                 <Award className="w-5 h-5 text-[#00338D]" />
               </div>
               <h3 className="font-bold text-[#1a1a2e] mb-1">{cat.name}</h3>
@@ -58,8 +58,8 @@ export default function Categories() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-100">
+        <div className="animate-fade-in fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="animate-scale-in bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-100">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-black text-[#1a1a2e]">New Award Category</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 p-1"><X className="w-5 h-5" /></button>

@@ -79,7 +79,6 @@ export default function JuryResults() {
           {awardResults
             .filter(r => r.published)
             .map(({ award, results }) => {
-              const maxScore = results[0]?.total_score || 1
               return (
                 <div key={award.id}>
                   {/* Award title */}
@@ -103,7 +102,6 @@ export default function JuryResults() {
                               className={`bg-white border border-gray-100 rounded-2xl p-4 flex flex-col items-center justify-end ${heights[i]} ${glow}`}>
                               <div className="text-3xl mb-1">{MEDAL[pos]}</div>
                               <div className="font-black text-[#1a1a2e] text-xs text-center leading-tight">{nom.name}</div>
-                              <div className="text-[#0091DA] font-black text-sm mt-1">{nom.total_score} pts</div>
                             </div>
                           ) : <div key={i} />
                         })}
@@ -131,18 +129,6 @@ export default function JuryResults() {
                           <div className="flex-1 min-w-0">
                             <div className="font-bold text-[#1a1a2e] text-sm truncate">{nom.name}</div>
                             <div className="text-gray-400 text-xs truncate">{nom.organisation}</div>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <div className="font-black text-[#0091DA] text-base">{nom.total_score || 0}</div>
-                            <div className="text-gray-400 text-xs">points</div>
-                          </div>
-                          <div className="w-20 flex-shrink-0">
-                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-[#0091DA] to-[#00338D] rounded-full"
-                                style={{ width: `${((nom.total_score || 0) / maxScore) * 100}%` }}
-                              />
-                            </div>
                           </div>
                         </div>
                       ))}
