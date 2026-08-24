@@ -8,8 +8,6 @@ from datetime import datetime
 
 router = APIRouter()
 
-RANK_POINTS = {1: 10, 2: 7, 3: 5, 4: 3, 5: 1}
-
 def serialize(doc):
     doc["id"] = str(doc.pop("_id"))
     for k in ["created_at", "updated_at", "timestamp"]:
@@ -35,19 +33,16 @@ class FlagRequest(BaseModel):
     nominee_id: str
     reason: str
 
-class RankVoteRequest(BaseModel):
+class SubmitTopChoicesRequest(BaseModel):
     award_id: str
-    nominee_id: str
-    rank: int  # 1-5
+    first_choice: str   # nominee_id
+    second_choice: str  # nominee_id
 
-class RankingEntry(BaseModel):
-    nominee_id: str
-    rank: int
-    points: int
-
-class SubmitRankingRequest(BaseModel):
+class SuggestNomineeRequest(BaseModel):
     award_id: str
-    rankings: list[RankingEntry]
+    name: str
+    designation: str
+    organisation: Optional[str] = ""
 
 @router.get("/awards")
 async def get_awards(user=Depends(get_current_user)):
@@ -59,9 +54,64 @@ async def get_awards(user=Depends(get_current_user)):
 
 @router.get("/awards/{award_id}/nominees")
 async def get_nominees_for_award(award_id: str, user=Depends(get_current_user)):
+    """Nominees available for browsing/voting. A jury-suggested nominee stays
+    hidden here until a head jury approves it (validates it) — admin-sourced
+    (ai_generated) nominees need no such approval. Head Jury reviews and
+    approves pending suggestions via GET /head-jury/nominees/{award_id},
+    which is unfiltered."""
     db = get_database()
     nominees = await db.nominees.find({"award_id": award_id}).to_list(100)
-    return [serialize(n) for n in nominees]
+    visible = [
+        n for n in nominees
+        if not n.get("suggested_by") or n.get("validated_by")
+    ]
+    return [serialize(n) for n in visible]
+
+@router.post("/suggest-nominee")
+async def suggest_nominee(req: SuggestNomineeRequest, user=Depends(get_current_user)):
+    """Jury or Head Jury suggest a name — the profile is looked up and built
+    automatically in the background; nobody types in a bio by hand."""
+    if user["role"] not in ["jury", "head_jury"]:
+        raise HTTPException(status_code=403)
+    db = get_database()
+
+    award = await db.awards.find_one({"_id": ObjectId(req.award_id)})
+    if not award:
+        raise HTTPException(status_code=404, detail="Award not found")
+
+    doc = {
+        "award_id": req.award_id,
+        "name": req.name,
+        "designation": req.designation,
+        "organisation": req.organisation or "",
+        "photo_url": "",
+        "rationale": "",
+        "rationale_data": {},
+        "validated_by": [],
+        "red_flagged": False,
+        "ai_generated": False,
+        "suggested_by": user["sub"],
+        "suggested_by_role": user["role"],
+        "enrichment_status": "pending",
+        "created_at": datetime.utcnow(),
+    }
+    result = await db.nominees.insert_one(doc)
+    nominee_id = str(result.inserted_id)
+
+    import asyncio
+    from services.nominee_suggestion import enrich_suggested_nominee
+    asyncio.create_task(enrich_suggested_nominee(
+        nominee_id=nominee_id,
+        name=req.name,
+        designation=req.designation,
+        organisation=req.organisation or "",
+        award_name=award.get("name", ""),
+        award_description=award.get("description", ""),
+        evaluation_criteria=award.get("criteria", []),
+    ))
+
+    await log_action(db, user, "suggest_nominee", {"award_id": req.award_id, "name": req.name})
+    return {"id": nominee_id, "message": "Nominee suggested — profile is being built"}
 
 @router.post("/validate-nominee")
 async def validate_nominee(req: ValidateNominee, user=Depends(get_current_user)):
@@ -97,47 +147,6 @@ async def flag_nominee(req: FlagRequest, user=Depends(get_current_user)):
     await log_action(db, user, "red_flag_nominee", {"nominee_id": req.nominee_id, "reason": req.reason})
     return {"message": "Nominee flagged"}
 
-@router.post("/vote")
-async def rank_vote(req: RankVoteRequest, user=Depends(get_current_user)):
-    if user["role"] not in ["jury", "head_jury"]:
-        raise HTTPException(status_code=403)
-    if req.rank not in RANK_POINTS:
-        raise HTTPException(status_code=400, detail="Rank must be 1-5")
-    db = get_database()
-
-    # Check voting is enabled
-    control = await db.vote_controls.find_one({"award_id": req.award_id})
-    if not control or not control.get("voting_enabled"):
-        raise HTTPException(status_code=403, detail="Voting is not open for this award")
-
-    # Check if already voted for this nominee
-    existing = await db.votes.find_one({"award_id": req.award_id, "nominee_id": req.nominee_id, "jury_id": user["sub"]})
-    if existing:
-        raise HTTPException(status_code=400, detail="You have already voted for this nominee")
-
-    points = RANK_POINTS[req.rank]
-    doc = {
-        "award_id": req.award_id, "nominee_id": req.nominee_id,
-        "jury_id": user["sub"], "jury_role": user["role"],
-        "rank": req.rank, "points": points, "created_at": datetime.utcnow()
-    }
-    await db.votes.insert_one(doc)
-
-    # Update nominee total score
-    await db.nominees.update_one(
-        {"_id": ObjectId(req.nominee_id)},
-        {"$inc": {"total_score": points}, "$addToSet": {"voted_by": user["sub"]}}
-    )
-
-    await log_action(db, user, "vote", {"award_id": req.award_id, "nominee_id": req.nominee_id, "rank": req.rank, "points": points})
-    return {"message": "Vote recorded", "points": points}
-
-@router.get("/my-votes/{award_id}")
-async def get_my_votes(award_id: str, user=Depends(get_current_user)):
-    db = get_database()
-    votes = await db.votes.find({"award_id": award_id, "jury_id": user["sub"]}).to_list(100)
-    return [serialize(v) for v in votes]
-
 @router.get("/vote-control/{award_id}")
 async def get_vote_control(award_id: str, user=Depends(get_current_user)):
     db = get_database()
@@ -163,108 +172,91 @@ async def get_nominees_legacy(award_id: str, user=Depends(get_current_user)):
     return [serialize(n) for n in nominees]
 
 
-# ── Jury Ranking (drag-and-drop) ───────────────────────────────────────────────
+# ── Jury Voting (top-2 choice, one-time, no visible points) ────────────────────
+#
+# Every jury member (regular and head jury alike) picks exactly two nominees —
+# a 1st choice and a 2nd choice. Both count as one vote each toward that
+# nominee's total (no point weighting). Once submitted, a vote is final and
+# cannot be resubmitted. The winner is whoever has the most total votes.
 
-@router.post("/ranking")
-async def submit_ranking(req: SubmitRankingRequest, user=Depends(get_current_user)):
-    """
-    Jury submits their ordered ranking for an award.
-    Each nominee gets a rank (1 = best) and points based on position.
-    Replaces any previous ranking by this jury member for this award.
-    """
+@router.post("/vote-top2")
+async def submit_top_choices(req: SubmitTopChoicesRequest, user=Depends(get_current_user)):
     if user["role"] not in ["jury", "head_jury"]:
-        raise HTTPException(status_code=403, detail="Only jury members can submit rankings")
+        raise HTTPException(status_code=403, detail="Only jury members can vote")
+
+    if req.first_choice == req.second_choice:
+        raise HTTPException(status_code=400, detail="First and second choice must be different nominees")
 
     db = get_database()
 
-    # Check voting is enabled
     control = await db.vote_controls.find_one({"award_id": req.award_id})
     if not control or not control.get("voting_enabled"):
         raise HTTPException(status_code=403, detail="Voting is not open for this award")
 
     jury_id = user["sub"]
 
-    # Remove previous ranking by this jury for this award
-    old_rankings = await db.jury_rankings.find(
-        {"award_id": req.award_id, "jury_id": jury_id}
-    ).to_list(100)
+    existing = await db.jury_rankings.find_one({"award_id": req.award_id, "jury_id": jury_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already voted for this award")
 
-    # Reverse old points from nominee totals
-    for old in old_rankings:
-        await db.nominees.update_one(
-            {"_id": ObjectId(old["nominee_id"])},
-            {
-                "$inc": {"total_score": -old["points"]},
-                "$pull": {"voted_by": jury_id},
-            }
-        )
+    for nominee_id in (req.first_choice, req.second_choice):
+        nom = await db.nominees.find_one({"_id": ObjectId(nominee_id), "award_id": req.award_id})
+        if not nom:
+            raise HTTPException(status_code=404, detail="Nominee not found for this award")
 
-    # Delete old ranking records
-    await db.jury_rankings.delete_many({"award_id": req.award_id, "jury_id": jury_id})
-
-    # Insert new rankings
     now = datetime.utcnow()
-    docs = []
-    for entry in req.rankings:
-        docs.append({
-            "award_id":    req.award_id,
-            "nominee_id":  entry.nominee_id,
-            "jury_id":     jury_id,
-            "jury_role":   user["role"],
-            "rank":        entry.rank,
-            "points":      entry.points,
-            "created_at":  now,
-        })
+    docs = [
+        {
+            "award_id":   req.award_id,
+            "nominee_id": req.first_choice,
+            "jury_id":    jury_id,
+            "jury_role":  user["role"],
+            "choice":     "first",
+            "created_at": now,
+        },
+        {
+            "award_id":   req.award_id,
+            "nominee_id": req.second_choice,
+            "jury_id":    jury_id,
+            "jury_role":  user["role"],
+            "choice":     "second",
+            "created_at": now,
+        },
+    ]
+    await db.jury_rankings.insert_many(docs)
 
-    if docs:
-        await db.jury_rankings.insert_many(docs)
-
-    # Apply new points to nominee totals
-    for entry in req.rankings:
+    for nominee_id in (req.first_choice, req.second_choice):
         await db.nominees.update_one(
-            {"_id": ObjectId(entry.nominee_id)},
-            {
-                "$inc": {"total_score": entry.points},
-                "$addToSet": {"voted_by": jury_id},
-            }
+            {"_id": ObjectId(nominee_id)},
+            {"$inc": {"total_score": 1}, "$addToSet": {"voted_by": jury_id}},
         )
 
-    await log_action(db, user, "submit_ranking", {
+    await log_action(db, user, "submit_vote", {
         "award_id": req.award_id,
-        "num_nominees": len(req.rankings),
+        "first_choice": req.first_choice,
+        "second_choice": req.second_choice,
     })
 
-    return {"message": "Ranking submitted", "rankings": len(req.rankings)}
+    return {"message": "Vote submitted"}
 
 
-@router.get("/ranking/{award_id}")
-async def get_my_ranking(award_id: str, user=Depends(get_current_user)):
-    """
-    Get the current jury member's submitted ranking for an award.
-    Returns null if not yet submitted.
-    """
+@router.get("/my-vote/{award_id}")
+async def get_my_vote(award_id: str, user=Depends(get_current_user)):
+    """Returns this jury member's submitted vote for an award, or null if not yet voted."""
     if user["role"] not in ["jury", "head_jury"]:
         raise HTTPException(status_code=403)
 
     db = get_database()
-    rankings = await db.jury_rankings.find(
-        {"award_id": award_id, "jury_id": user["sub"]}
-    ).sort("rank", 1).to_list(100)
-
-    if not rankings:
+    rows = await db.jury_rankings.find({"award_id": award_id, "jury_id": user["sub"]}).to_list(10)
+    if not rows:
         return None
 
+    first  = next((r for r in rows if r["choice"] == "first"), None)
+    second = next((r for r in rows if r["choice"] == "second"), None)
+
     return {
-        "award_id":  award_id,
-        "jury_id":   user["sub"],
-        "rankings":  [
-            {
-                "nominee_id": r["nominee_id"],
-                "rank":       r["rank"],
-                "points":     r["points"],
-            }
-            for r in rankings
-        ],
-        "submitted_at": rankings[0].get("created_at", "").isoformat()
-            if rankings[0].get("created_at") else "",
+        "award_id":      award_id,
+        "first_choice":  first["nominee_id"] if first else None,
+        "second_choice": second["nominee_id"] if second else None,
+        "submitted_at":  rows[0].get("created_at", "").isoformat() if rows[0].get("created_at") else "",
     }

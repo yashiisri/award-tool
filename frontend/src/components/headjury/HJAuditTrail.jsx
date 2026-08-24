@@ -5,10 +5,10 @@ import PageHeader from '../layout/PageHeader'
 
 const ACTION_STYLES = {
   create_award: 'bg-blue-50 text-blue-700 border-blue-200',
-  add_nominee: 'bg-green-50 text-green-700 border-green-200',
+  suggest_nominee: 'bg-green-50 text-green-700 border-green-200',
   delete_nominee: 'bg-red-50 text-red-700 border-red-200',
   validate_nominee: 'bg-teal-50 text-teal-700 border-teal-200',
-  vote: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  submit_vote: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   add_comment: 'bg-purple-50 text-purple-700 border-purple-200',
   red_flag_nominee: 'bg-orange-50 text-orange-700 border-orange-200',
   update_vote_control: 'bg-indigo-50 text-indigo-700 border-indigo-200',
@@ -31,9 +31,9 @@ export default function HJAuditTrail() {
 
   return (
     <div className="p-8">
-      <PageHeader icon={FileText} title="Audit Trail" subtitle="Complete log of all platform activity" accent="#7F3F98" light="#F5EEF8"
+      <PageHeader icon={FileText} title="Audit Trail" subtitle="Complete log of all platform activity" accent="#00338D" light="#EEF3FF"
         action={
-          <button onClick={fetchLogs} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-[#7F3F98] text-sm font-medium transition-all shadow-sm">
+          <button onClick={fetchLogs} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-[#00338D] text-sm font-medium transition-all shadow-sm">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
         }
@@ -42,7 +42,7 @@ export default function HJAuditTrail() {
       <div className="flex gap-2 mb-5">
         {[['all', 'All'], ['admin', 'Admin'], ['jury', 'Jury'], ['head_jury', 'Head Jury']].map(([val, label]) => (
           <button key={val} onClick={() => setFilter(val)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${filter === val ? 'bg-[#7F3F98] text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-[#7F3F98]/30'}`}>
+            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${filter === val ? 'bg-[#00338D] text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-[#00338D]/30'}`}>
             {label}
           </button>
         ))}
@@ -60,13 +60,13 @@ export default function HJAuditTrail() {
           filtered.map((log, i) => (
             <div key={log.id} className={`grid grid-cols-12 px-6 py-4 items-start gap-4 ${i !== filtered.length - 1 ? 'border-b border-gray-50' : ''} hover:bg-gray-50/50 transition-colors`}>
               <div className="col-span-2 flex items-center gap-2">
-                <div className="w-7 h-7 bg-[#F5EEF8] rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#7F3F98] text-xs font-black">{log.user_id?.[0]?.toUpperCase()}</span>
+                <div className="w-7 h-7 bg-[#EEF3FF] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-[#00338D] text-xs font-black">{log.user_id?.[0]?.toUpperCase()}</span>
                 </div>
                 <span className="text-[#1a1a2e] text-sm font-medium truncate">{log.user_id}</span>
               </div>
               <div className="col-span-2">
-                <span className={`px-2 py-1 text-xs rounded-lg font-medium ${log.user_role === 'head_jury' ? 'bg-[#F5EEF8] text-[#7F3F98]' : log.user_role === 'jury' ? 'bg-[#EAF5FC] text-[#0091DA]' : 'bg-[#EEF2FA] text-[#00338D]'}`}>{log.user_role}</span>
+                <span className={`px-2 py-1 text-xs rounded-lg font-medium ${log.user_role === 'head_jury' ? 'bg-[#EEF3FF] text-[#00338D]' : log.user_role === 'jury' ? 'bg-[#EEF3FF] text-[#00338D]' : 'bg-[#EEF2FA] text-[#00338D]'}`}>{log.user_role}</span>
               </div>
               <div className="col-span-2">
                 <span className={`px-2 py-1 text-xs rounded-lg font-medium border ${ACTION_STYLES[log.action] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>{log.action?.replace(/_/g, ' ')}</span>

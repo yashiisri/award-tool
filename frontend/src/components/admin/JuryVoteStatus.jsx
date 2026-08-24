@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BarChart3, RefreshCw, Star, UserCheck, Trash2, Plus, Flag, Trophy, Medal, ChevronDown, GripVertical, Building2, Briefcase, Clock } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
+import RankMedal from '../layout/RankMedal'
 
 const ACTION_ICON = {
   vote: <Star className="w-3.5 h-3.5 text-yellow-500" />,
@@ -20,12 +21,10 @@ const ACTION_STYLE = {
   submit_ranking: 'bg-[#EEF2FA] text-[#00338D] border-[#00338D]/20',
 }
 
-const POSITION_POINTS = [10, 8, 6, 5, 4, 3, 2, 1]
-
 // ── Vote Scores Tab ───────────────────────────────────────────────────────────
 function VoteScoresTab({ awards }) {
   const [selectedAward, setSelectedAward] = useState(awards[0]?.id || '')
-  const [rankingsByJury, setRankingsByJury] = useState([])
+  const [choicesByJury, setChoicesByJury] = useState([])
   const [loading, setLoading] = useState(false)
 
   // keep award in sync if awards list arrives after first render
@@ -34,29 +33,25 @@ function VoteScoresTab({ awards }) {
   }, [awards])
 
   useEffect(() => {
-    if (selectedAward) fetchRankings(selectedAward)
+    if (selectedAward) fetchChoices(selectedAward)
   }, [selectedAward])
 
-  const fetchRankings = async (awardId) => {
+  const fetchChoices = async (awardId) => {
     setLoading(true)
     try {
       const { data } = await api.get(`/admin/rankings/by-jury/${awardId}`)
-      setRankingsByJury(data)
+      setChoicesByJury(data)
     } catch (e) {
-      setRankingsByJury([])
+      setChoicesByJury([])
     } finally {
       setLoading(false)
     }
   }
 
-  const rankBg = (rank) => {
-    if (rank === 1) return { row: 'bg-amber-50/60', badge: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-400' }
-    if (rank === 2) return { row: 'bg-gray-50/60',  badge: 'bg-gray-100 text-gray-500 border-gray-200',   dot: 'bg-gray-400'  }
-    if (rank === 3) return { row: 'bg-orange-50/40', badge: 'bg-orange-50 text-orange-500 border-orange-200', dot: 'bg-orange-400' }
-    return { row: '', badge: 'bg-[#EEF2FA] text-[#00338D] border-[#00338D]/20', dot: 'bg-[#0091DA]' }
+  const choiceStyle = (choice) => {
+    if (choice === 'first') return { row: 'bg-amber-50/60', badge: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-400', label: '1st Choice', rank: 1 }
+    return { row: 'bg-gray-50/60', badge: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400', label: '2nd Choice', rank: 2 }
   }
-
-  const medals = ['🥇', '🥈', '🥉']
 
   return (
     <div>
@@ -84,20 +79,20 @@ function VoteScoresTab({ awards }) {
       )}
 
       {/* Empty */}
-      {!loading && rankingsByJury.length === 0 && (
+      {!loading && choicesByJury.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
           <div className="w-14 h-14 bg-[#EEF2FA] rounded-2xl flex items-center justify-center mb-4">
             <Trophy className="w-7 h-7 text-[#00338D]" />
           </div>
-          <p className="text-gray-500 font-semibold text-sm mb-1">No rankings submitted yet</p>
-          <p className="text-gray-400 text-xs">Rankings will appear here once jury members submit their votes.</p>
+          <p className="text-gray-500 font-semibold text-sm mb-1">No votes submitted yet</p>
+          <p className="text-gray-400 text-xs">Votes will appear here once jury members submit their picks.</p>
         </div>
       )}
 
       {/* One card per jury member */}
-      {!loading && rankingsByJury.length > 0 && (
+      {!loading && choicesByJury.length > 0 && (
         <div className="space-y-5">
-          {rankingsByJury.map(member => (
+          {choicesByJury.map(member => (
             <div key={member.jury_id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
 
               {/* Member header */}
@@ -105,7 +100,7 @@ function VoteScoresTab({ awards }) {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0"
-                    style={{ backgroundColor: member.jury_role === 'head_jury' ? '#7F3F98' : '#00338D' }}
+                    style={{ backgroundColor: member.jury_role === 'head_jury' ? '#00338D' : '#00338D' }}
                   >
                     {member.jury_id?.[0]?.toUpperCase()}
                   </div>
@@ -113,8 +108,8 @@ function VoteScoresTab({ awards }) {
                     <p className="font-bold text-[#0A1628] text-sm">{member.jury_id}</p>
                     <span className={`inline-block px-2 py-0.5 text-xs rounded font-semibold mt-0.5 ${
                       member.jury_role === 'head_jury'
-                        ? 'bg-[#F5EEF8] text-[#7F3F98]'
-                        : 'bg-[#EAF5FC] text-[#0091DA]'
+                        ? 'bg-[#EEF3FF] text-[#00338D]'
+                        : 'bg-[#EEF3FF] text-[#00338D]'
                     }`}>
                       {member.jury_role === 'head_jury' ? 'Head Jury' : 'Jury Member'}
                     </span>
@@ -128,35 +123,28 @@ function VoteScoresTab({ awards }) {
                 </div>
               </div>
 
-              {/* Ranked list */}
+              {/* Choices */}
               <div className="divide-y divide-gray-50">
-                {member.rankings.map((entry) => {
-                  const s = rankBg(entry.rank)
+                {member.choices.map((entry) => {
+                  const s = choiceStyle(entry.choice)
                   return (
                     <div
                       key={entry.nominee_id}
                       className={`flex items-center gap-4 px-6 py-3.5 transition-colors hover:bg-gray-50/50 ${s.row}`}
                     >
-                      {/* Rank badge */}
-                      <div className={`
-                        flex-shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center text-sm
-                        ${entry.rank <= 3 ? 'text-lg' : 'font-black text-xs text-gray-400 bg-gray-50 border-gray-200'}
-                      `}>
-                        {entry.rank <= 3 ? medals[entry.rank - 1] : `#${entry.rank}`}
+                      <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                        <RankMedal rank={s.rank} size={26} />
                       </div>
 
-                      {/* Avatar */}
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
-                        style={{ background: 'linear-gradient(135deg, #00338D, #0091DA)' }}>
-                        {entry.photo_url ? (
+                        style={{ background: 'linear-gradient(135deg, #00338D, #00338D)' }}>
+                        {entry.photo_url && (
                           <img src={entry.photo_url} alt={entry.name} className="w-full h-full object-cover"
-                            onError={e => e.target.style.display = 'none'} />
-                        ) : (
-                          <span className="text-white text-xs font-black">{entry.name?.[0]}</span>
+                            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'inline' }} />
                         )}
+                        <span className="text-white text-xs font-black" style={{ display: entry.photo_url ? 'none' : 'inline' }}>{entry.name?.[0]}</span>
                       </div>
 
-                      {/* Name + role */}
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-[#0A1628] text-sm truncate">{entry.name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
@@ -174,10 +162,9 @@ function VoteScoresTab({ awards }) {
                         </div>
                       </div>
 
-                      {/* Points */}
                       <div className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-black ${s.badge}`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                        {entry.points} pts
+                        {s.label}
                       </div>
                     </div>
                   )
@@ -186,10 +173,7 @@ function VoteScoresTab({ awards }) {
 
               {/* Footer summary */}
               <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-xs text-gray-400">{member.rankings.length} nominees ranked</span>
-                <span className="text-xs text-gray-400 font-medium">
-                  Total points awarded: <span className="text-[#00338D] font-bold">{member.rankings.reduce((s, r) => s + r.points, 0)}</span>
-                </span>
+                <span className="text-xs text-gray-400">{member.choices.length} of 2 choices submitted</span>
               </div>
             </div>
           ))}
@@ -210,7 +194,7 @@ const MEDAL_COLORS = [
 function Top3Podium({ award, onLoad }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [maxPts, setMaxPts] = useState(1)
+  const [maxVotes, setMaxVotes] = useState(1)
 
   useEffect(() => {
     const fetch = async () => {
@@ -218,7 +202,7 @@ function Top3Podium({ award, onLoad }) {
       try {
         const { data: res } = await api.get(`/admin/rankings/top3/${award.id}`)
         setData(res)
-        setMaxPts(res[0]?.total_points || 1)
+        setMaxVotes(res[0]?.total_votes || 1)
         if (onLoad) onLoad(res.length)
       } catch (e) { setData([]) }
       finally { setLoading(false) }
@@ -237,7 +221,7 @@ function Top3Podium({ award, onLoad }) {
   if (!data || data.length === 0) {
     return (
       <div className="py-8 text-center text-gray-400 text-xs">
-        No rankings submitted yet for this award.
+        No votes submitted yet for this award.
       </div>
     )
   }
@@ -246,30 +230,29 @@ function Top3Podium({ award, onLoad }) {
     <div className="space-y-3 py-2">
       {data.map((entry, i) => {
         const m = MEDAL_COLORS[i]
-        const barPct = Math.round((entry.total_points / maxPts) * 100)
-        const medals = ['🥇', '🥈', '🥉']
+        const barPct = Math.round((entry.total_votes / maxVotes) * 100)
 
         return (
           <div key={entry.nominee_id} className={`flex items-center gap-4 p-4 rounded-xl border ${m.bg} ${m.border}`}>
-            {/* Medal */}
-            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-2xl">
-              {medals[i]}
+            {/* Rank */}
+            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
+              <RankMedal rank={i + 1} size={32} />
             </div>
 
             {/* Avatar */}
             <div className="w-10 h-10 rounded-xl bg-[#00338D] flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-white shadow-sm">
-              {entry.photo_url ? (
-                <img src={entry.photo_url} alt={entry.name} className="w-full h-full object-cover" onError={e => e.target.style.display = 'none'} />
-              ) : (
-                <span className="text-white text-sm font-black">{entry.name?.[0]}</span>
+              {entry.photo_url && (
+                <img src={entry.photo_url} alt={entry.name} className="w-full h-full object-cover"
+                  onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'inline' }} />
               )}
+              <span className="text-white text-sm font-black" style={{ display: entry.photo_url ? 'none' : 'inline' }}>{entry.name?.[0]}</span>
             </div>
 
             {/* Info + bar */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
                 <span className={`font-bold text-sm truncate ${m.text}`}>{entry.name}</span>
-                <span className={`text-xs font-black flex-shrink-0 ml-2 ${m.text}`}>{entry.total_points} pts</span>
+                <span className={`text-xs font-black flex-shrink-0 ml-2 ${m.text}`}>{entry.total_votes} vote{entry.total_votes === 1 ? '' : 's'}</span>
               </div>
               <p className="text-gray-400 text-xs truncate mb-1.5">{entry.designation} · {entry.organisation}</p>
               {/* Score bar */}
@@ -281,10 +264,10 @@ function Top3Podium({ award, onLoad }) {
               </div>
             </div>
 
-            {/* Jury count */}
+            {/* 1st-choice count */}
             <div className="flex-shrink-0 text-center">
-              <div className={`text-lg font-black ${m.text}`}>{entry.jury_count}</div>
-              <div className="text-xs text-gray-400">voters</div>
+              <div className={`text-lg font-black ${m.text}`}>{entry.first_choice_votes}</div>
+              <div className="text-xs text-gray-400">as 1st choice</div>
             </div>
           </div>
         )
@@ -350,8 +333,8 @@ export default function JuryVoteStatus() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-          { label: 'Jury Members', value: users.filter(u => u.role === 'jury').length,      color: '#0091DA', bg: '#EAF5FC' },
-          { label: 'Head Jury',    value: users.filter(u => u.role === 'head_jury').length,  color: '#7F3F98', bg: '#F5EEF8' },
+          { label: 'Jury Members', value: users.filter(u => u.role === 'jury').length,      color: '#00338D', bg: '#EEF3FF' },
+          { label: 'Head Jury',    value: users.filter(u => u.role === 'head_jury').length,  color: '#00338D', bg: '#EEF3FF' },
           { label: 'Actions Logged', value: auditLogs.length,                                color: '#059669', bg: '#ECFDF5' },
         ].map(({ label, value, color, bg }) => (
           <div key={label} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
@@ -407,7 +390,7 @@ export default function JuryVoteStatus() {
                 </div>
                 <div>
                   <p className="font-bold text-[#0A1628] text-sm">{currentAward?.name}</p>
-                  <p className="text-gray-400 text-xs">Aggregate rankings from all jury members</p>
+                  <p className="text-gray-400 text-xs">Aggregate votes from all jury members</p>
                 </div>
               </div>
 
@@ -418,7 +401,7 @@ export default function JuryVoteStatus() {
               {/* Legend */}
               <div className="px-6 pb-5 pt-0">
                 <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
-                  Points are aggregated from all jury members' submitted rankings. Position 1 = 10 pts, Position 2 = 8 pts, Position 3 = 6 pts, and so on.
+                  Each jury member picks a 1st and 2nd choice nominee — both count as one vote. The nominee with the most total votes ranks highest.
                 </p>
               </div>
             </div>
@@ -451,7 +434,7 @@ export default function JuryVoteStatus() {
                   <span className="text-[#0A1628] text-sm font-medium">{log.user_id}</span>
                 </div>
                 <div>
-                  <span className={`px-2 py-1 text-xs rounded-lg font-medium border ${log.user_role === 'head_jury' ? 'bg-[#F5EEF8] text-[#7F3F98] border-[#7F3F98]/20' : 'bg-[#EAF5FC] text-[#0091DA] border-[#0091DA]/20'}`}>
+                  <span className={`px-2 py-1 text-xs rounded-lg font-medium border ${log.user_role === 'head_jury' ? 'bg-[#EEF3FF] text-[#00338D] border-[#00338D]/20' : 'bg-[#EEF3FF] text-[#00338D] border-[#00338D]/20'}`}>
                     {log.user_role}
                   </span>
                 </div>
@@ -484,12 +467,12 @@ export default function JuryVoteStatus() {
                 <div key={u.id} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-black"
-                      style={{ backgroundColor: u.role === 'head_jury' ? '#7F3F98' : '#0091DA' }}>
+                      style={{ backgroundColor: u.role === 'head_jury' ? '#00338D' : '#00338D' }}>
                       {u.username?.[0]?.toUpperCase()}
                     </div>
                     <div>
                       <div className="font-bold text-[#0A1628] text-sm">{u.username}</div>
-                      <span className={`px-2 py-0.5 text-xs rounded-lg font-medium ${u.role === 'head_jury' ? 'bg-[#F5EEF8] text-[#7F3F98]' : 'bg-[#EAF5FC] text-[#0091DA]'}`}>
+                      <span className={`px-2 py-0.5 text-xs rounded-lg font-medium ${u.role === 'head_jury' ? 'bg-[#EEF3FF] text-[#00338D]' : 'bg-[#EEF3FF] text-[#00338D]'}`}>
                         {u.role === 'head_jury' ? 'Head Jury' : 'Jury Member'}
                       </span>
                     </div>

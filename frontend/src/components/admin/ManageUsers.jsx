@@ -3,6 +3,22 @@ import { UserPlus, Users, Crown, X, Eye, EyeOff, Mail, Lock, User, Trash2 } from
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 
+const ROLE_META = {
+  jury:      { label: 'Jury Member', color: 'var(--kpmg-blue)', bg: '#EEF3FF' },
+  head_jury: { label: 'Head Jury',   color: 'var(--kpmg-blue)',     bg: '#EEF3FF' },
+}
+
+function FormField({ label, children }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 7 }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
 export default function ManageUsers() {
   const [users, setUsers] = useState([])
   const [showModal, setShowModal] = useState(false)
@@ -41,162 +57,183 @@ export default function ManageUsers() {
   const headJuryUsers = users.filter(u => u.role === 'head_jury')
 
   return (
-    <div className="p-8">
-      <PageHeader icon={UserPlus} title="Manage Users" subtitle="Create and manage jury and head jury accounts" accent="#00338D" light="#EEF2FA"
+    <div style={{ padding: '28px 32px', minHeight: '100vh', background: 'var(--surface)', fontFamily: "'Inter', sans-serif" }}>
+      <PageHeader
+        icon={UserPlus}
+        title="Manage Users"
+        subtitle="Create and manage jury and head jury accounts"
         action={
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#00338D] text-white rounded-xl font-semibold text-sm hover:bg-[#002a73] transition-colors shadow-sm">
-            <UserPlus className="w-4 h-4" /> Create User
+          <button onClick={() => setShowModal(true)} style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '9px 18px', background: 'var(--kpmg-blue)', color: '#fff',
+            border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            letterSpacing: '0.04em', textTransform: 'uppercase', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--kpmg-navy)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'var(--kpmg-blue)'}>
+            <UserPlus size={13} /> Create User
           </button>
         }
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {[
-          { label: 'Total Users', value: users.length, color: '#00338D', bg: '#EEF2FA', icon: Users },
-          { label: 'Jury Members', value: juryUsers.length, color: '#0091DA', bg: '#EAF5FC', icon: Users },
-          { label: 'Head Jury', value: headJuryUsers.length, color: '#7F3F98', bg: '#F5EEF8', icon: Crown },
-        ].map(({ label, value, color, bg, icon: Icon }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: bg }}>
-                <Icon className="w-4 h-4" style={{ color }} />
+      {users.length > 0 && (
+        <div style={{ display: 'flex', gap: 1, marginBottom: 28, background: '#fff', border: '1px solid var(--border-light)' }}>
+          {[
+            { label: 'Total Users', value: users.length },
+            { label: 'Jury Members', value: juryUsers.length },
+            { label: 'Head Jury', value: headJuryUsers.length },
+          ].map((s, i) => (
+            <div key={i} style={{ flex: 1, padding: '16px 24px', borderRight: i < 2 ? '1px solid var(--border-light)' : 'none' }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 600, color: 'var(--kpmg-blue)', lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {users.length === 0 ? (
+        <div style={{ padding: '72px 24px', background: '#fff', border: '1px solid var(--border-light)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ width: 48, height: 48, background: 'var(--kpmg-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <UserPlus size={20} color="#fff" />
+          </div>
+          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: 'var(--kpmg-navy)', marginBottom: 6 }}>No users created yet</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Create jury and head jury accounts to get started.</p>
+        </div>
+      ) : (
+        <>
+          {[['Head Jury', headJuryUsers, Crown], ['Jury Members', juryUsers, Users]].map(([label, list, Icon]) => list.length > 0 && (
+            <div key={label} style={{ marginBottom: 28 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Icon size={14} color="var(--kpmg-blue)" strokeWidth={1.6} />
+                <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0 }}>{label}</h3>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+                {list.map(u => {
+                  const meta = ROLE_META[u.role]
+                  return (
+                    <div key={u.id} style={{ background: '#fff', border: '1px solid var(--border-light)', borderTop: `3px solid ${meta.color}`, padding: '18px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 38, height: 38, background: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{u.username?.[0]?.toUpperCase()}</span>
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.username}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ padding: '3px 8px', background: meta.bg, color: meta.color, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{meta.label}</span>
+                        <button onClick={() => handleDelete(u.id)} style={{ padding: 5, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--border)', transition: 'color 0.15s', display: 'flex' }}
+                          onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--border)'}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
-            <div className="text-2xl font-black mb-1" style={{ color }}>{value}</div>
-            <div className="text-gray-400 text-xs font-medium">{label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Head Jury section */}
-      {headJuryUsers.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Crown className="w-4 h-4 text-[#7F3F98]" />
-            <h3 className="font-black text-[#1a1a2e] text-sm uppercase tracking-wider">Head Jury</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {headJuryUsers.map(u => (
-              <div key={u.id} className="bg-white border border-[#7F3F98]/15 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-[#7F3F98] rounded-xl flex items-center justify-center">
-                    <span className="text-white font-black text-base">{u.username?.[0]?.toUpperCase()}</span>
-                  </div>
-                  <div>
-                    <div className="font-bold text-[#1a1a2e] text-sm">{u.username}</div>
-                    <div className="text-gray-400 text-xs">{u.email}</div>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                  <span className="px-2 py-1 bg-[#F5EEF8] text-[#7F3F98] text-xs rounded-lg font-semibold">Head Jury</span>
-                  <button onClick={() => handleDelete(u.id)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Jury section */}
-      {juryUsers.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="w-4 h-4 text-[#0091DA]" />
-            <h3 className="font-black text-[#1a1a2e] text-sm uppercase tracking-wider">Jury Members</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {juryUsers.map(u => (
-              <div key={u.id} className="bg-white border border-[#0091DA]/15 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-[#0091DA] rounded-xl flex items-center justify-center">
-                    <span className="text-white font-black text-base">{u.username?.[0]?.toUpperCase()}</span>
-                  </div>
-                  <div>
-                    <div className="font-bold text-[#1a1a2e] text-sm">{u.username}</div>
-                    <div className="text-gray-400 text-xs">{u.email}</div>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                  <span className="px-2 py-1 bg-[#EAF5FC] text-[#0091DA] text-xs rounded-lg font-semibold">Jury Member</span>
-                  <button onClick={() => handleDelete(u.id)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {users.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
-          <div className="w-14 h-14 bg-[#EEF2FA] rounded-2xl flex items-center justify-center mb-4">
-            <UserPlus className="w-7 h-7 text-[#00338D]" />
-          </div>
-          <p className="text-gray-500 font-semibold mb-1">No users created yet</p>
-          <p className="text-gray-400 text-sm">Create jury and head jury accounts to get started.</p>
-        </div>
+          ))}
+        </>
       )}
 
       {/* Create User Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,20,60,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50, animation: 'fadeIn 0.15s ease' }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setError(''); setSuccess('') } }}>
+          <div style={{ background: '#fff', width: '100%', maxWidth: 440, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,20,60,0.2)', animation: 'modalIn 0.2s ease' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '2px solid var(--kpmg-blue)' }}>
               <div>
-                <h2 className="text-lg font-black text-[#1a1a2e]">Create New User</h2>
-                <p className="text-gray-400 text-xs mt-0.5">Only jury and head jury roles can be created</p>
+                <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, fontWeight: 600, color: 'var(--kpmg-navy)', margin: 0 }}>Create New User</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 3 }}>Only jury and head jury roles can be created</p>
               </div>
-              <button onClick={() => { setShowModal(false); setError(''); setSuccess('') }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowModal(false); setError(''); setSuccess('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 4 }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--kpmg-navy)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
+                <X size={16} />
+              </button>
             </div>
 
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              {/* Role selector */}
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Role</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[['jury', 'Jury Member', '#0091DA', '#EAF5FC'], ['head_jury', 'Head Jury', '#7F3F98', '#F5EEF8']].map(([val, label, color, bg]) => (
-                    <button key={val} type="button" onClick={() => setForm({ ...form, role: val })}
-                      className="flex items-center gap-2 p-3 rounded-xl border-2 transition-all text-sm font-semibold"
-                      style={form.role === val ? { borderColor: color, backgroundColor: bg, color } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
-                      {val === 'head_jury' ? <Crown className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-                      {label}
-                    </button>
-                  ))}
+            <form onSubmit={handleCreate} style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <FormField label="Role">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[['jury', 'Jury Member', Users], ['head_jury', 'Head Jury', Crown]].map(([val, label, Icon]) => {
+                    const meta = ROLE_META[val]
+                    const active = form.role === val
+                    return (
+                      <button key={val} type="button" onClick={() => setForm({ ...form, role: val })}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
+                          border: `1px solid ${active ? meta.color : 'var(--border)'}`,
+                          background: active ? meta.bg : '#fff', color: active ? meta.color : 'var(--text-secondary)',
+                          fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                        }}>
+                        <Icon size={14} /> {label}
+                      </button>
+                    )
+                  })}
                 </div>
-              </div>
+              </FormField>
 
-              {[
-                { label: 'Username', key: 'username', type: 'text', icon: User, placeholder: 'Enter username' },
-                { label: 'Email', key: 'email', type: 'email', icon: Mail, placeholder: 'Enter email' },
-              ].map(({ label, key, type, icon: Icon, placeholder }) => (
-                <div key={key} className="relative">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{label}</label>
-                  <Icon className="absolute left-4 bottom-3.5 w-4 h-4 text-gray-400" />
-                  <input type={type} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
-                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00338D]/30 text-sm"
-                    placeholder={placeholder} required />
+              <FormField label="Username">
+                <div style={{ position: 'relative' }}>
+                  <User size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input type="text" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })}
+                    style={inputSt} placeholder="Enter username" required
+                    onFocus={e => e.target.style.borderColor = 'var(--kpmg-blue)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border)'} />
                 </div>
-              ))}
+              </FormField>
 
-              <div className="relative">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Password</label>
-                <Lock className="absolute left-4 bottom-3.5 w-4 h-4 text-gray-400" />
-                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
-                  className="w-full pl-11 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[#1a1a2e] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00338D]/30 text-sm"
-                  placeholder="Set a password" required />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 bottom-3.5 text-gray-400 hover:text-gray-600">
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <FormField label="Email">
+                <div style={{ position: 'relative' }}>
+                  <Mail size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                    style={inputSt} placeholder="Enter email" required
+                    onFocus={e => e.target.style.borderColor = 'var(--kpmg-blue)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+                </div>
+              </FormField>
+
+              <FormField label="Password">
+                <div style={{ position: 'relative' }}>
+                  <Lock size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
+                    style={{ ...inputSt, paddingRight: 38 }} placeholder="Set a password" required
+                    onFocus={e => e.target.style.borderColor = 'var(--kpmg-blue)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </FormField>
+
+              {error && <div style={{ padding: '10px 12px', background: '#FEF2F2', borderLeft: '3px solid #DC2626', fontSize: 12, color: '#DC2626' }}>{error}</div>}
+              {success && <div style={{ padding: '10px 12px', background: '#F0FDF4', borderLeft: '3px solid #16A34A', fontSize: 12, color: '#16A34A' }}>{success}</div>}
+
+              <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+                <button type="submit" disabled={loading} style={{
+                  flex: 1, padding: '10px',
+                  background: loading ? '#9BA8B5' : 'var(--kpmg-blue)', color: '#fff',
+                  border: 'none', fontSize: 12, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
+                  letterSpacing: '0.06em', textTransform: 'uppercase', transition: 'background 0.15s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+                onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--kpmg-navy)' }}
+                onMouseLeave={e => { if (!loading) e.currentTarget.style.background = 'var(--kpmg-blue)' }}>
+                  {loading && <div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />}
+                  {loading ? 'Creating…' : 'Create Account'}
                 </button>
-              </div>
-
-              {error && <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">{error}</div>}
-              {success && <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">{success}</div>}
-
-              <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={loading} className="flex-1 py-3 bg-[#00338D] text-white rounded-xl font-semibold text-sm hover:bg-[#002a73] disabled:opacity-50 transition-colors">
-                  {loading ? 'Creating...' : 'Create Account'}
+                <button type="button" onClick={() => { setShowModal(false); setError(''); setSuccess('') }} style={{
+                  padding: '10px 18px', background: '#fff', color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)', fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface)'}
+                onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+                  Cancel
                 </button>
-                <button type="button" onClick={() => { setShowModal(false); setError(''); setSuccess('') }} className="px-5 py-3 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors">Cancel</button>
               </div>
             </form>
           </div>
@@ -204,4 +241,15 @@ export default function ManageUsers() {
       )}
     </div>
   )
+}
+
+const inputSt = {
+  width: '100%', padding: '9px 11px 9px 34px',
+  background: '#fff',
+  border: '1px solid var(--border)',
+  borderLeft: '2px solid var(--border)',
+  fontSize: 13, color: 'var(--text-primary)',
+  outline: 'none', boxSizing: 'border-box',
+  transition: 'border-color 0.15s',
+  fontFamily: 'inherit',
 }

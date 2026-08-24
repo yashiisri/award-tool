@@ -89,10 +89,6 @@ class CreateUserRequest(BaseModel):
     password: str
     role: str
 
-class AISearchRequest(BaseModel):
-    award_id: str
-    num_results: int = 5
-
 class ValidateNomineeRequest(BaseModel):
     nominee_id: str
 
@@ -213,21 +209,24 @@ async def unflag_nominee(nominee_id: str, user=Depends(get_current_user)):
 
 @router.get("/rankings/top3/{award_id}")
 async def get_top3_rankings(award_id: str, user=Depends(get_current_user)):
-    """Aggregate all jury rankings for an award and return top-3 nominees by total points."""
+    """Aggregate all jury votes for an award and return the top-3 nominees by vote count.
+    Each jury member's 1st and 2nd choice both count as one vote."""
     if user["role"] != "admin":
         raise HTTPException(status_code=403)
     db = get_database()
 
-    # Aggregate points across all jury members
     pipeline = [
         {"$match": {"award_id": award_id}},
-        {"$group": {"_id": "$nominee_id", "total_points": {"$sum": "$points"}, "jury_count": {"$sum": 1}}},
-        {"$sort": {"total_points": -1}},
+        {"$group": {
+            "_id": "$nominee_id",
+            "total_votes": {"$sum": 1},
+            "first_choice_votes": {"$sum": {"$cond": [{"$eq": ["$choice", "first"]}, 1, 0]}},
+        }},
+        {"$sort": {"total_votes": -1, "first_choice_votes": -1}},
         {"$limit": 3},
     ]
     ranked = await db.jury_rankings.aggregate(pipeline).to_list(3)
 
-    # Hydrate with nominee details
     result = []
     for i, r in enumerate(ranked):
         nom = await db.nominees.find_one({"_id": ObjectId(r["_id"])})
@@ -239,8 +238,8 @@ async def get_top3_rankings(award_id: str, user=Depends(get_current_user)):
                 "designation": nom.get("designation", ""),
                 "organisation": nom.get("organisation", ""),
                 "photo_url": nom.get("photo_url", ""),
-                "total_points": r["total_points"],
-                "jury_count": r["jury_count"],
+                "total_votes": r["total_votes"],
+                "first_choice_votes": r["first_choice_votes"],
             })
     return result
 
@@ -257,19 +256,16 @@ async def delete_nominee(nominee_id: str, user=Depends(get_current_user)):
 
 @router.get("/rankings/by-jury/{award_id}")
 async def get_rankings_by_jury(award_id: str, user=Depends(get_current_user)):
-    """Return each jury member's full ranked list for an award, hydrated with nominee details."""
+    """Return each jury member's top-2 vote for an award, hydrated with nominee details."""
     if user["role"] != "admin":
         raise HTTPException(status_code=403)
     db = get_database()
 
-    # Fetch all ranking rows for this award
     rows = await db.jury_rankings.find({"award_id": award_id}).to_list(1000)
 
-    # Pre-fetch all nominees for this award in one query
     nominees_list = await db.nominees.find({"award_id": award_id}).to_list(200)
     nominee_map = {str(n["_id"]): n for n in nominees_list}
 
-    # Group by jury_id, sorted by rank
     by_jury = {}
     for row in rows:
         jid = row["jury_id"]
@@ -278,12 +274,11 @@ async def get_rankings_by_jury(award_id: str, user=Depends(get_current_user)):
                 "jury_id": jid,
                 "jury_role": row.get("jury_role", "jury"),
                 "submitted_at": row.get("created_at", "").isoformat() if row.get("created_at") else "",
-                "rankings": [],
+                "choices": [],
             }
         nom = nominee_map.get(row["nominee_id"], {})
-        by_jury[jid]["rankings"].append({
-            "rank": row["rank"],
-            "points": row["points"],
+        by_jury[jid]["choices"].append({
+            "choice": row.get("choice", ""),
             "nominee_id": row["nominee_id"],
             "name": nom.get("name", "Unknown"),
             "designation": nom.get("designation", ""),
@@ -291,9 +286,9 @@ async def get_rankings_by_jury(award_id: str, user=Depends(get_current_user)):
             "photo_url": nom.get("photo_url", ""),
         })
 
-    # Sort each member's list by rank
+    order = {"first": 0, "second": 1}
     for jid in by_jury:
-        by_jury[jid]["rankings"].sort(key=lambda r: r["rank"])
+        by_jury[jid]["choices"].sort(key=lambda c: order.get(c["choice"], 2))
 
     return list(by_jury.values())
 
@@ -306,75 +301,6 @@ async def red_flag_nominee(req: RedFlagRequest, user=Depends(get_current_user)):
         {"$set": {"red_flagged": True, "red_flag_reason": req.reason, "red_flagged_by": user["sub"]}})
     await log_action(db, user, "red_flag_nominee", {"nominee_id": req.nominee_id, "reason": req.reason})
     return {"message": "Flagged"}
-
-# ── AI Search (real engine) ────────────────────────────────────────────────────
-
-@router.post("/ai-search-nominees")
-async def ai_search_nominees(req: AISearchRequest, user=Depends(get_current_user)):
-    """
-    Real AI-powered nominee research engine.
-
-    Flow:
-      1. Fetch award + stored metrics
-      2. Generate search queries via Llama 3.3
-      3. Search DuckDuckGo + Wikipedia
-      4. Extract high-profile business leaders only
-      5. Rank via Llama 3.3
-      6. Return ranked nominee payloads
-    """
-    if user["role"] != "admin":
-        raise HTTPException(status_code=403)
-
-    if not settings.GROQ_KEY:
-        # Re-read from env in case settings was loaded before .env was available
-        import os
-        groq_key = os.environ.get("GROQ_KEY") or settings.GROQ_KEY
-        if not groq_key:
-            raise HTTPException(
-                status_code=503,
-                detail="GROQ_KEY is not configured. Please add it to your .env file."
-            )
-        # Patch settings so the service picks it up
-        settings.GROQ_KEY = groq_key
-
-    db = get_database()
-    award = await db.awards.find_one({"_id": ObjectId(req.award_id)})
-    if not award:
-        raise HTTPException(status_code=404, detail="Award not found")
-
-    from services.nominee_service import run_ai_nominee_search
-
-    try:
-        nominees = await run_ai_nominee_search(
-            db=db,
-            award_id=req.award_id,
-            num_results=req.num_results,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
-    except Exception as exc:
-        logger.exception("AI nominee search failed for award %s", req.award_id)
-        raise HTTPException(
-            status_code=500,
-            detail=f"AI search failed: {str(exc)}"
-        )
-
-    if not nominees:
-        raise HTTPException(
-            status_code=404,
-            detail="No high-profile candidates found. Try a more specific award description."
-        )
-
-    await log_action(db, user, "ai_search_nominees", {
-        "award_id": req.award_id,
-        "num_requested": req.num_results,
-        "num_found": len(nominees),
-    })
-
-    return nominees
-
 
 @router.get("/awards/{award_id}/metrics")
 async def get_award_metrics(award_id: str, user=Depends(get_current_user)):

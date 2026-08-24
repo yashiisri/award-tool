@@ -3,28 +3,13 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Users, Plus, Trash2, X, Sparkles, AlertTriangle,
   ChevronDown, Building2, Briefcase,
-  CheckCircle, Loader2, Brain, BarChart3,
+  CheckCircle, Loader2, Brain,
   FileText, Flag, ShieldCheck, ShieldOff, Printer
 } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 import NomineeProfileCard from './NomineeProfileCard'
 import DossierModal from './DossierModal'
-
-// ── Confidence badge ──────────────────────────────────────────────────────────
-function ConfidenceBadge({ score }) {
-  const pct = Math.round((score || 0) * 100)
-  if (!pct) return null
-  const color =
-    pct >= 85 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-    pct >= 65 ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                'bg-amber-50 text-amber-700 border-amber-200'
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${color}`}>
-      <BarChart3 className="w-3 h-3" /> {pct}%
-    </span>
-  )
-}
 
 // ── AI Results Preview Modal ──────────────────────────────────────────────────
 function AIResultsModal({ results, onConfirm, onClose, saving }) {
@@ -42,7 +27,7 @@ function AIResultsModal({ results, onConfirm, onClose, saving }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl border border-gray-100 max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-[#7F3F98] to-[#0091DA] rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-gradient-to-br from-[#00338D] to-[#00338D] rounded-xl flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -59,7 +44,6 @@ function AIResultsModal({ results, onConfirm, onClose, saving }) {
           {results.map((nom, i) => {
             const isSelected = selected.has(i)
             const sources = nom.rationale_data?.source_links || nom.sources || []
-            const score = nom.rationale_data?.confidence_score ?? 0
             const reason = nom.rationale_data?.relevance_reason || ''
             return (
               <div
@@ -70,17 +54,16 @@ function AIResultsModal({ results, onConfirm, onClose, saving }) {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#00338D] to-[#0091DA] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {nom.photo_url ? (
-                      <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                    ) : (
-                      <span className="text-white text-lg font-black">{nom.name?.[0]}</span>
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#00338D] to-[#00338D] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {nom.photo_url && (
+                      <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover"
+                        onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
                     )}
+                    <span className="text-white text-lg font-black" style={{ display: nom.photo_url ? 'none' : 'flex' }}>{nom.name?.[0]}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="font-bold text-[#0A1628] text-sm">{nom.name}</span>
-                      <ConfidenceBadge score={score} />
                       {isSelected && <CheckCircle className="w-4 h-4 text-[#00338D]" />}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-400 mb-2">
@@ -271,7 +254,7 @@ export default function ViewNominees() {
                 <button
                   onClick={handleAISearch}
                   disabled={aiLoading}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#7F3F98] to-[#0091DA] text-white rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-60 transition-all shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#00338D] to-[#00338D] text-white rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-60 transition-all shadow-sm"
                 >
                   {aiLoading
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Researching...</>
@@ -379,13 +362,13 @@ export default function ViewNominees() {
                   className="h-36 bg-gradient-to-br from-[#EEF2FA] to-[#dce8f5] flex items-center justify-center relative cursor-pointer overflow-hidden"
                   onClick={() => setSelectedNominee(nom)}
                 >
-                  {nom.photo_url ? (
-                    <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                  ) : (
-                    <div className="w-16 h-16 bg-[#00338D] rounded-full flex items-center justify-center">
-                      <span className="text-white text-2xl font-black">{nom.name?.[0]}</span>
-                    </div>
+                  {nom.photo_url && (
+                    <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover"
+                      onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
                   )}
+                  <div className="w-16 h-16 bg-[#00338D] rounded-full items-center justify-center" style={{ display: nom.photo_url ? 'none' : 'flex' }}>
+                    <span className="text-white text-2xl font-black">{nom.name?.[0]}</span>
+                  </div>
 
                   {/* Status badges */}
                   <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1">
@@ -412,7 +395,6 @@ export default function ViewNominees() {
                     >
                       {nom.name}
                     </h3>
-                    <ConfidenceBadge score={nom.rationale_data?.confidence_score} />
                   </div>
                   <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5">
                     <Briefcase className="w-3 h-3 flex-shrink-0" />
@@ -502,7 +484,7 @@ export default function ViewNominees() {
 
       {/* Nominee Profile Modal */}
       {selectedNominee && (
-        <NomineeProfileCard nominee={selectedNominee} onClose={() => setSelectedNominee(null)} />
+        <NomineeProfileCard nominee={selectedNominee} awardName={currentAward?.name} onClose={() => setSelectedNominee(null)} />
       )}
 
       {/* Add Nominee Modal */}

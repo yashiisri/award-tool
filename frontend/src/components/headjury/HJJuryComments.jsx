@@ -3,6 +3,8 @@ import { MessageSquare, RefreshCw } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 
+const ACCENT = 'var(--kpmg-blue)'
+
 export default function HJJuryComments() {
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(false)
@@ -20,59 +22,74 @@ export default function HJJuryComments() {
   const filtered = filter === 'all' ? comments : comments.filter(c => c.jury_id === filter)
 
   return (
-    <div className="p-8">
-      <PageHeader icon={MessageSquare} title="Jury Comments" subtitle="All feedback submitted by jury members" accent="#7F3F98" light="#F5EEF8"
+    <div style={{ padding: '28px 32px', minHeight: '100vh', background: 'var(--surface)', fontFamily: "'Inter', sans-serif" }}>
+      <PageHeader
+        icon={MessageSquare} title="Jury Comments" subtitle="All feedback submitted by jury members" accent={ACCENT}
         action={
-          <button onClick={fetchComments} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-[#7F3F98] text-sm font-medium transition-all shadow-sm">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          <button onClick={fetchComments} style={{
+            display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px',
+            background: '#fff', color: 'var(--text-secondary)', border: '1px solid var(--border)',
+            fontSize: 12, fontWeight: 500, cursor: 'pointer',
+          }}>
+            <RefreshCw size={13} style={{ animation: loading ? 'spin 0.7s linear infinite' : 'none' }} /> Refresh
           </button>
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-          <div className="text-2xl font-black text-[#7F3F98] mb-1">{comments.length}</div>
-          <div className="text-gray-400 text-xs font-medium">Total Comments</div>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-          <div className="text-2xl font-black text-[#7F3F98] mb-1">{members.length}</div>
-          <div className="text-gray-400 text-xs font-medium">Jury Members</div>
-        </div>
+      <div style={{ display: 'flex', gap: 1, marginBottom: 24, background: '#fff', border: '1px solid var(--border-light)' }}>
+        {[
+          { label: 'Total Comments', value: comments.length },
+          { label: 'Jury Members', value: members.length },
+        ].map((s, i) => (
+          <div key={i} style={{ flex: 1, padding: '16px 24px', borderRight: i < 1 ? '1px solid var(--border-light)' : 'none' }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 600, color: ACCENT, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{s.label}</div>
+          </div>
+        ))}
       </div>
 
       {members.length > 0 && (
-        <div className="flex gap-2 mb-5 flex-wrap">
-          <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${filter === 'all' ? 'bg-[#7F3F98] text-white' : 'bg-white border border-gray-200 text-gray-500'}`}>All</button>
-          {members.map(m => (
-            <button key={m} onClick={() => setFilter(m)} className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${filter === m ? 'bg-[#7F3F98] text-white' : 'bg-white border border-gray-200 text-gray-500'}`}>{m}</button>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+          {[['all', 'All'], ...members.map(m => [m, m])].map(([val, label]) => (
+            <button key={val} onClick={() => setFilter(val)} style={{
+              padding: '7px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              background: filter === val ? ACCENT : '#fff', color: filter === val ? '#fff' : 'var(--text-secondary)',
+              border: `1px solid ${filter === val ? ACCENT : 'var(--border)'}`,
+            }}>
+              {label}
+            </button>
           ))}
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
-          <MessageSquare className="w-10 h-10 text-gray-300 mb-3" />
-          <p className="text-gray-400 text-sm">No comments yet.</p>
+        <div style={{ padding: '72px 24px', background: '#fff', border: '1px solid var(--border-light)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <MessageSquare size={36} color="var(--border)" style={{ marginBottom: 12 }} />
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No comments yet.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: 'var(--border-light)', border: '1px solid var(--border-light)' }}>
           {filtered.map(c => (
-            <div key={c.id} className="bg-white border border-gray-100 rounded-2xl p-5 hover:shadow-sm hover:border-[#7F3F98]/15 transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3 flex-1">
-                  <div className="w-9 h-9 bg-[#7F3F98] rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-sm font-black">{c.jury_id?.[0]?.toUpperCase()}</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-[#1a1a2e] text-sm">{c.jury_id}</span>
-                      <span className={`px-2 py-0.5 text-xs rounded-lg font-medium ${c.jury_role === 'head_jury' ? 'bg-[#F5EEF8] text-[#7F3F98]' : 'bg-[#EAF5FC] text-[#0091DA]'}`}>{c.jury_role || 'jury'}</span>
-                    </div>
-                    <p className="text-gray-700 text-sm leading-relaxed">{c.comment}</p>
-                  </div>
+            <div key={c.id} style={{ background: '#fff', padding: '16px 20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flex: 1, minWidth: 0 }}>
+                <div style={{ width: 34, height: 34, background: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{c.jury_id?.[0]?.toUpperCase()}</span>
                 </div>
-                <span className="text-gray-400 text-xs whitespace-nowrap">{c.created_at ? new Date(c.created_at).toLocaleString() : '—'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{c.jury_id}</span>
+                    <span style={{
+                      padding: '2px 7px', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
+                      background: c.jury_role === 'head_jury' ? '#EEF3FF' : '#EEF3FF',
+                      color: c.jury_role === 'head_jury' ? 'var(--kpmg-blue)' : 'var(--kpmg-blue)',
+                    }}>{c.jury_role || 'jury'}</span>
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.65 }}>{c.comment}</p>
+                </div>
               </div>
+              <span style={{ color: 'var(--text-muted)', fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {c.created_at ? new Date(c.created_at).toLocaleString() : '—'}
+              </span>
             </div>
           ))}
         </div>

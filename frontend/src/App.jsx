@@ -6,6 +6,7 @@ import AuthPage from './pages/AuthPage'
 import AdminDashboard from './pages/AdminDashboard'
 import JuryDashboard from './pages/JuryDashboard'
 import HeadJuryDashboard from './pages/HeadJuryDashboard'
+import { ThemeProvider } from './context/ThemeContext'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -38,6 +39,7 @@ function App() {
     : '/jury/awards'
 
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
@@ -63,6 +65,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
+    </ThemeProvider>
   )
 }
 

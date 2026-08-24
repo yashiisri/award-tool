@@ -1,103 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
-  GripVertical, Trophy, Lock, CheckCircle,
-  Send, Building2, Briefcase, Info, ArrowLeft, Award, ArrowRight
+  Trophy, Lock, CheckCircle, Send, Building2, Briefcase,
+  ArrowLeft, Award, Check,
 } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
+import RankMedal from '../layout/RankMedal'
+import aimaLogo from '../../aima-logo.png'
 
-const POSITION_POINTS = [10, 8, 6, 5, 4, 3, 2, 1]
-function getPoints(index) {
-  return POSITION_POINTS[index] ?? 1
-}
-
-// ── Golden confetti burst ─────────────────────────────────────────────────────
-const GOLD_SHADES = [
-  '#FFD700', '#FFC200', '#FFB300', '#FFAA00',
-  '#FFE066', '#FFF0A0', '#E6B800', '#FFCA28',
-]
-
-function ConfettiBurst({ onDone }) {
-  const pieces = useRef(
-    Array.from({ length: 80 }, (_, i) => ({
-      id: i,
-      left: 20 + Math.random() * 60,
-      color: GOLD_SHADES[Math.floor(Math.random() * GOLD_SHADES.length)],
-      size: 6 + Math.random() * 8,
-      angle: -80 + Math.random() * 160,
-      speed: 0.6 + Math.random() * 0.8,
-      spin: Math.random() > 0.5 ? 1 : -1,
-      shape: Math.random() > 0.4 ? 'rect' : 'circle',
-      delay: Math.random() * 0.25,
-    }))
-  ).current
-
-  useEffect(() => {
-    const t = setTimeout(onDone, 2800)
-    return () => clearTimeout(t)
-  }, [onDone])
-
-  return (
-    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-      {pieces.map(p => (
-        <div
-          key={p.id}
-          style={{
-            position: 'absolute',
-            bottom: '-10px',
-            left: `${p.left}%`,
-            width: p.shape === 'circle' ? p.size : p.size * 0.6,
-            height: p.shape === 'circle' ? p.size : p.size * 1.6,
-            borderRadius: p.shape === 'circle' ? '50%' : '2px',
-            backgroundColor: p.color,
-            boxShadow: `0 0 4px ${p.color}88`,
-            animation: `confetti-fly ${1.4 * p.speed}s ease-out ${p.delay}s forwards`,
-            '--angle': `${p.angle}deg`,
-            '--spin': p.spin,
-          }}
-        />
-      ))}
-      <style>{`
-        @keyframes confetti-fly {
-          0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
-          60%  { opacity: 1; }
-          100% {
-            transform:
-              translate(
-                calc(sin(var(--angle)) * 260px),
-                calc(-1 * cos(var(--angle)) * 420px)
-              )
-              rotate(calc(var(--spin) * 540deg))
-              scale(0.4);
-            opacity: 0;
-          }
-        }
-      `}</style>
-    </div>
-  )
-}
-
-function PositionBadge({ index }) {
-  const medals = ['🥇', '🥈', '🥉']
-  const colors = [
-    'bg-amber-50 text-amber-600 border-amber-200',
-    'bg-gray-50 text-gray-500 border-gray-200',
-    'bg-orange-50 text-orange-500 border-orange-200',
-  ]
-  if (index < 3) {
-    return (
-      <div className={`w-9 h-9 rounded-xl border flex items-center justify-center text-lg flex-shrink-0 ${colors[index]}`}>
-        {medals[index]}
-      </div>
-    )
-  }
-  return (
-    <div className="w-9 h-9 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center flex-shrink-0">
-      <span className="text-gray-400 font-bold text-xs">#{index + 1}</span>
-    </div>
-  )
+const CHOICE_STYLE = {
+  first:  { label: '1st Choice', rank: 1, ring: 'ring-2 ring-amber-400', badge: 'bg-amber-500' },
+  second: { label: '2nd Choice', rank: 2, ring: 'ring-2 ring-gray-400',  badge: 'bg-gray-500'  },
 }
 
 export default function JuryRanking() {
@@ -107,15 +21,13 @@ export default function JuryRanking() {
 
   const [awardName, setAwardName] = useState('')
   const [nominees, setNominees] = useState([])
+  const [firstChoice, setFirstChoice] = useState(null)
+  const [secondChoice, setSecondChoice] = useState(null)
   const [submitted, setSubmitted] = useState(false)
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [votingOpen, setVotingOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [showConfetti, setShowConfetti] = useState(false)
-  const [dragIdx, setDragIdx] = useState(null)
-  const [dragOverIdx, setDragOverIdx] = useState(null)
-  const dragNode = useRef(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   useEffect(() => {
     if (awardFromUrl) fetchData(awardFromUrl)
@@ -124,25 +36,25 @@ export default function JuryRanking() {
   const fetchData = async (awardId) => {
     setLoading(true)
     try {
-      const [nomRes, ctrlRes, rankRes, awardRes] = await Promise.all([
+      const [nomRes, ctrlRes, voteRes, awardRes] = await Promise.all([
         api.get(`/jury/awards/${awardId}/nominees`),
         api.get(`/jury/vote-control/${awardId}`),
-        api.get(`/jury/ranking/${awardId}`).catch(() => ({ data: null })),
+        api.get(`/jury/my-vote/${awardId}`).catch(() => ({ data: null })),
         api.get('/jury/awards'),
       ])
 
       const award = awardRes.data.find(a => a.id === awardId)
       setAwardName(award?.name || '')
       setVotingOpen(ctrlRes.data.voting_enabled || false)
+      setNominees(nomRes.data)
 
-      if (rankRes.data && rankRes.data.rankings?.length > 0) {
-        const rankMap = {}
-        rankRes.data.rankings.forEach(r => { rankMap[r.nominee_id] = r.rank })
-        const ordered = [...nomRes.data].sort((a, b) => (rankMap[a.id] ?? 99) - (rankMap[b.id] ?? 99))
-        setNominees(ordered)
+      if (voteRes.data) {
+        setFirstChoice(voteRes.data.first_choice)
+        setSecondChoice(voteRes.data.second_choice)
         setSubmitted(true)
       } else {
-        setNominees(nomRes.data)
+        setFirstChoice(null)
+        setSecondChoice(null)
         setSubmitted(false)
       }
     } catch (e) {
@@ -152,113 +64,50 @@ export default function JuryRanking() {
     }
   }
 
-  // ── Drag handlers ─────────────────────────────────────────────────────────────
-
-  const handleDragStart = (e, index) => {
-    dragNode.current = e.currentTarget
-    setDragIdx(index)
-    e.dataTransfer.effectAllowed = 'move'
-    setTimeout(() => { if (dragNode.current) dragNode.current.classList.add('opacity-40') }, 0)
+  // Tap a nominee: 1st empty -> fill 1st; then 2nd empty -> fill 2nd;
+  // tapping an already-picked nominee again clears that pick.
+  const handlePick = (nomineeId) => {
+    if (!votingOpen || submitted) return
+    if (firstChoice === nomineeId) { setFirstChoice(null); return }
+    if (secondChoice === nomineeId) { setSecondChoice(null); return }
+    if (!firstChoice) { setFirstChoice(nomineeId); return }
+    if (!secondChoice) { setSecondChoice(nomineeId); return }
+    // Both slots full and this nominee isn't in either — replace 2nd choice
+    setSecondChoice(nomineeId)
   }
-
-  const handleDragEnter = (e, index) => {
-    e.preventDefault()
-    if (index !== dragIdx) setDragOverIdx(index)
-  }
-
-  const handleDragOver = (e) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
-
-  const handleDrop = (e, dropIndex) => {
-    e.preventDefault()
-    if (dragIdx === null || dragIdx === dropIndex) return
-    const updated = [...nominees]
-    const [moved] = updated.splice(dragIdx, 1)
-    updated.splice(dropIndex, 0, moved)
-    setNominees(updated)
-    setDragIdx(null)
-    setDragOverIdx(null)
-  }
-
-  const handleDragEnd = () => {
-    if (dragNode.current) dragNode.current.classList.remove('opacity-40')
-    dragNode.current = null
-    setDragIdx(null)
-    setDragOverIdx(null)
-  }
-
-  // ── Touch drag (mobile) ───────────────────────────────────────────────────────
-  const touchStartY = useRef(null)
-  const touchStartIdx = useRef(null)
-
-  const handleTouchStart = (e, index) => {
-    touchStartY.current = e.touches[0].clientY
-    touchStartIdx.current = index
-  }
-
-  const handleTouchMove = (e) => {
-    e.preventDefault()
-    const y = e.touches[0].clientY
-    const items = document.querySelectorAll('[data-rank-item]')
-    let targetIdx = touchStartIdx.current
-    items.forEach((el, i) => {
-      const rect = el.getBoundingClientRect()
-      if (y >= rect.top && y <= rect.bottom) targetIdx = i
-    })
-    setDragOverIdx(targetIdx)
-  }
-
-  const handleTouchEnd = () => {
-    if (touchStartIdx.current !== null && dragOverIdx !== null && touchStartIdx.current !== dragOverIdx) {
-      const updated = [...nominees]
-      const [moved] = updated.splice(touchStartIdx.current, 1)
-      updated.splice(dragOverIdx, 0, moved)
-      setNominees(updated)
-    }
-    touchStartIdx.current = null
-    touchStartY.current = null
-    setDragOverIdx(null)
-  }
-
-  // ── Submit ranking ────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    if (!votingOpen || !awardFromUrl) return
+    if (!votingOpen || !awardFromUrl || !firstChoice || !secondChoice) return
     setSaving(true)
     try {
-      const rankings = nominees.map((nom, i) => ({
-        nominee_id: nom.id,
-        rank: i + 1,
-        points: getPoints(i),
-      }))
-      await api.post('/jury/ranking', { award_id: awardFromUrl, rankings })
-      setSubmitted(true)
-      setShowConfetti(true)
-      setShowSuccessPopup(true)
-      setTimeout(() => setShowSuccessPopup(false), 3000)
+      await api.post('/jury/vote-top2', {
+        award_id: awardFromUrl,
+        first_choice: firstChoice,
+        second_choice: secondChoice,
+      })
+      setConfirmOpen(false)
       await fetchData(awardFromUrl)
     } catch (e) {
-      alert(e.response?.data?.detail || 'Failed to submit ranking')
+      alert(e.response?.data?.detail || 'Failed to submit vote')
     } finally {
       setSaving(false)
     }
   }
 
-  const handleConfettiDone = useCallback(() => setShowConfetti(false), [])
+  const firstNominee  = nominees.find(n => n.id === firstChoice)
+  const secondNominee = nominees.find(n => n.id === secondChoice)
 
   // ── No award selected ─────────────────────────────────────────────────────────
   if (!awardFromUrl) {
     return (
       <div className="p-8">
-        <PageHeader icon={Trophy} title="Jury Ranking" subtitle="Drag nominees to set your preferred order" accent="#0091DA" light="#EAF5FC" />
+        <PageHeader icon={Trophy} title="Jury Voting" subtitle="Pick your top 2 nominees" accent="#00338D" light="#EEF3FF" />
         <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 text-center">
-          <div className="w-14 h-14 bg-[#EAF5FC] rounded-2xl flex items-center justify-center mb-4">
-            <Award className="w-7 h-7 text-[#0091DA]" />
+          <div className="w-14 h-14 bg-[#EEF3FF] rounded-2xl flex items-center justify-center mb-4">
+            <Award className="w-7 h-7 text-[#00338D]" />
           </div>
           <p className="text-gray-600 font-semibold text-sm mb-1">No award selected</p>
-          <p className="text-gray-400 text-xs mb-6">Navigate to Award Categories and select an award to begin ranking.</p>
+          <p className="text-gray-400 text-xs mb-6">Navigate to Award Categories and select an award to begin voting.</p>
           <button
             onClick={() => navigate('/jury/awards')}
             className="flex items-center gap-2 px-5 py-2.5 bg-[#00338D] text-white rounded-xl font-semibold text-sm hover:bg-[#002a73] transition-colors"
@@ -270,46 +119,100 @@ export default function JuryRanking() {
     )
   }
 
+  const bothPicked = firstChoice && secondChoice
+
+  // ── Already voted — formal confirmation, not the interactive grid ──────────────
+  if (submitted && !loading) {
+    return (
+      <div className="p-8" style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ width: '100%', maxWidth: 520, background: '#fff', border: '1px solid var(--border-light)', textAlign: 'center', padding: '48px 40px' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <CheckCircle className="w-7 h-7" style={{ color: '#16A34A' }} />
+          </div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 600, color: 'var(--kpmg-navy)', marginBottom: 8 }}>
+            Your vote has been recorded
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 28 }}>
+            Thank you for your participation in the AIMA Managing India Awards 2025.
+          </p>
+
+          <div style={{ textAlign: 'left', border: '1px solid var(--border-light)', marginBottom: 28 }}>
+            {[['1st Choice', firstNominee], ['2nd Choice', secondNominee]].map(([label, nom], i) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: i === 0 ? '1px solid var(--border-light)' : 'none' }}>
+                <RankMedal rank={i + 1} size={26} />
+                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{nom?.name || '—'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{nom?.organisation}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 24 }}>
+            You may close this window or continue reviewing other award categories.
+          </p>
+
+          <img src={aimaLogo} alt="AIMA" style={{ height: 30, objectFit: 'contain', margin: '0 auto 20px', display: 'block' }} />
+
+          <button
+            onClick={() => navigate('/jury/awards')}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-[#00338D] text-white rounded-none font-bold text-sm hover:bg-[#002a73] transition-all"
+          >
+            Back to Award Categories
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-8">
-      {/* Confetti */}
-      {showConfetti && <ConfettiBurst onDone={handleConfettiDone} />}
-
-      {/* Success toast */}
-      {showSuccessPopup && createPortal(
-        <div
-          className="fixed top-6 right-6 z-[9999] flex items-center gap-3 px-4 py-3 bg-white border border-amber-200 rounded-2xl shadow-xl shadow-amber-100/60"
-          style={{ animation: 'toast-in-out 3s ease forwards' }}
-        >
-          <div className="w-9 h-9 bg-gradient-to-br from-amber-400 to-amber-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-            <Trophy className="w-4 h-4 text-white" />
+      {/* Confirmation dialog before final submit */}
+      {confirmOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,20,60,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 100 }}
+          onClick={e => { if (e.target === e.currentTarget && !saving) setConfirmOpen(false) }}>
+          <div style={{ background: '#fff', width: '100%', maxWidth: 420, padding: '28px 26px' }}>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 600, color: 'var(--kpmg-navy)', marginBottom: 6 }}>
+              Confirm Your Official Vote
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 18 }}>Once submitted, your vote cannot be changed.</p>
+            <div style={{ border: '1px solid var(--border-light)', marginBottom: 22 }}>
+              {[['1st Choice', firstNominee], ['2nd Choice', secondNominee]].map(([label, nom], i) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: i === 0 ? '1px solid var(--border-light)' : 'none' }}>
+                  <RankMedal rank={i + 1} size={20} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{nom?.name}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleSubmit} disabled={saving} style={{
+                flex: 1, padding: '11px', background: saving ? '#9BA8B5' : 'var(--kpmg-blue)', color: '#fff', border: 'none',
+                fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', cursor: saving ? 'not-allowed' : 'pointer',
+              }}>
+                {saving ? 'Submitting…' : 'Confirm Vote'}
+              </button>
+              <button onClick={() => setConfirmOpen(false)} disabled={saving} style={{
+                padding: '11px 18px', background: '#fff', color: 'var(--text-secondary)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+              }}>
+                Go Back
+              </button>
+            </div>
           </div>
-          <div>
-            <p className="font-bold text-[#0A1628] text-sm leading-tight">Ranking Submitted</p>
-            <p className="text-gray-400 text-xs mt-0.5">Results will be published by the administrator.</p>
-          </div>
-          <style>{`
-            @keyframes toast-in-out {
-              0%   { transform: translateX(120%); opacity: 0; }
-              12%  { transform: translateX(0);    opacity: 1; }
-              70%  { transform: translateX(0);    opacity: 1; max-width: 360px; }
-              88%  { transform: translateX(0);    opacity: 1; max-width: 44px;  padding-right: 12px; }
-              100% { transform: translateX(120%); opacity: 0; max-width: 44px; }
-            }
-          `}</style>
-        </div>,
-        document.body
+        </div>
       )}
 
       <PageHeader
         icon={Trophy}
-        title="Jury Ranking"
-        subtitle="Drag nominees to set your preferred order — position determines points"
-        accent="#0091DA"
-        light="#EAF5FC"
+        title="Jury Voting"
+        subtitle="Tap to pick your 1st and 2nd choice nominee"
+        accent="#00338D"
+        light="#EEF3FF"
       />
 
-      {/* Award context + back */}
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(`/jury/nominees?award=${awardFromUrl}`)}
@@ -318,9 +221,9 @@ export default function JuryRanking() {
           <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
         {awardName && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-[#EAF5FC] border border-[#0091DA]/15 rounded-xl">
-            <Award className="w-4 h-4 text-[#0091DA] flex-shrink-0" />
-            <span className="text-[#0091DA] font-bold text-sm">{awardName}</span>
+          <div className="flex items-center gap-2 px-4 py-2 bg-[#EEF3FF] border border-[#00338D]/15 rounded-xl">
+            <Award className="w-4 h-4 text-[#00338D] flex-shrink-0" />
+            <span className="text-[#00338D] font-bold text-sm">{awardName}</span>
           </div>
         )}
       </div>
@@ -330,110 +233,86 @@ export default function JuryRanking() {
         <div className="mb-6 flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
           <Lock className="w-5 h-5 text-gray-400 flex-shrink-0" />
           <div>
-            <p className="font-semibold text-gray-700 text-sm">Ranking is not open</p>
-            <p className="text-gray-400 text-xs mt-0.5">The administrator will open voting when ready.</p>
+            <p className="font-semibold text-gray-700 text-sm">Voting for this award has not yet opened</p>
+            <p className="text-gray-400 text-xs mt-0.5">You will be notified when voting begins.</p>
           </div>
         </div>
       )}
 
-      {/* Submitted confirmation */}
-      {submitted && votingOpen && (
-        <div className="mb-6 flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
-          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-          <div>
-            <p className="font-semibold text-green-800 text-sm">Ranking submitted successfully</p>
-            <p className="text-green-600 text-xs mt-0.5">You may drag to reorder and resubmit at any time before voting closes.</p>
+      {/* Picking instructions */}
+      {votingOpen && !loading && (
+        <div className="mb-6 flex items-center gap-3 p-4 bg-[#EEF3FF] border border-[#00338D]/20 rounded-xl">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-black flex items-center justify-center">1</div>
+            <span className="text-sm text-[#0A1628] font-medium">Tap your 1st choice</span>
           </div>
+          <span className="text-gray-300">→</span>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-gray-500 text-white text-xs font-black flex items-center justify-center">2</div>
+            <span className="text-sm text-[#0A1628] font-medium">Tap your 2nd choice</span>
+          </div>
+          <span className="text-gray-300">→</span>
+          <span className="text-sm text-[#00338D] font-bold">Confirm</span>
         </div>
       )}
 
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-20">
-          <div className="w-7 h-7 border-2 border-[#0091DA] border-t-transparent rounded-full animate-spin" />
+          <div className="w-7 h-7 border-2 border-[#00338D] border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
       {/* Empty state */}
-      {!loading && nominees.length === 0 && (
+      {!loading && votingOpen && nominees.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
           <Trophy className="w-10 h-10 text-gray-300 mb-3" />
           <p className="text-gray-500 font-medium text-sm">No nominees available for this award.</p>
         </div>
       )}
 
-      {/* Drag-and-drop ranking list */}
-      {!loading && nominees.length > 0 && (
-        <div className="space-y-2 mb-6">
-          {nominees.map((nom, index) => {
-            const pts = getPoints(index)
-            const isDraggingOver = dragOverIdx === index
-
+      {/* Nominee grid — tap to pick. Not shown at all while voting is locked. */}
+      {!loading && votingOpen && nominees.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
+          {nominees.map(nom => {
+            const choice = firstChoice === nom.id ? 'first' : secondChoice === nom.id ? 'second' : null
+            const style = choice ? CHOICE_STYLE[choice] : null
             return (
               <div
                 key={nom.id}
-                data-rank-item
-                draggable={votingOpen && !submitted}
-                onDragStart={e => handleDragStart(e, index)}
-                onDragEnter={e => handleDragEnter(e, index)}
-                onDragOver={handleDragOver}
-                onDrop={e => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                onTouchStart={e => handleTouchStart(e, index)}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                className={`
-                  flex items-center gap-3 p-4 bg-white rounded-xl border transition-all select-none
-                  ${isDraggingOver ? 'border-[#0091DA] shadow-lg scale-[1.01]' : 'border-gray-100'}
-                  ${votingOpen && !submitted ? 'cursor-grab active:cursor-grabbing hover:border-[#0091DA]/30 hover:shadow-md' : 'cursor-default'}
-                  ${submitted ? 'opacity-90' : ''}
+                onClick={() => handlePick(nom.id)}
+                className={`bg-white border rounded-2xl overflow-hidden transition-all relative cursor-pointer hover:shadow-lg hover:-translate-y-0.5
+                  ${style ? `border-transparent ${style.ring}` : 'border-gray-100'}
                 `}
               >
-                {/* Drag handle */}
-                <div className={`flex-shrink-0 ${votingOpen && !submitted ? 'text-gray-300 hover:text-gray-400' : 'text-gray-200'}`}>
-                  <GripVertical className="w-5 h-5" />
-                </div>
-
-                {/* Position badge */}
-                <PositionBadge index={index} />
-
-                {/* Avatar */}
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#EAF5FC] to-[#dce8f5] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  {nom.photo_url ? (
-                    <img
-                      src={nom.photo_url}
-                      alt={nom.name}
-                      className="w-full h-full object-cover"
-                      onError={e => { e.target.style.display = 'none' }}
-                    />
-                  ) : (
-                    <span className="text-[#0091DA] font-bold text-sm">{nom.name?.[0]}</span>
+                {style && (
+                  <div className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-white text-xs font-black shadow-md ${style.badge}`}>
+                    <RankMedal rank={style.rank} size={16} /> {style.label}
+                  </div>
+                )}
+                <div className="h-28 bg-gradient-to-br from-[#EEF3FF] to-[#dce8f5] flex items-center justify-center relative">
+                  {nom.photo_url && (
+                    <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover"
+                      onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
                   )}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <span className="font-bold text-[#0A1628] text-sm block truncate">{nom.name}</span>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    <span className="flex items-center gap-1 text-gray-400 text-xs truncate">
-                      <Briefcase className="w-3 h-3 flex-shrink-0" />{nom.designation}
-                    </span>
-                    <span className="flex items-center gap-1 text-gray-400 text-xs truncate">
-                      <Building2 className="w-3 h-3 flex-shrink-0" />{nom.organisation}
-                    </span>
+                  <div className="w-14 h-14 bg-[#00338D] rounded-full items-center justify-center" style={{ display: nom.photo_url ? 'none' : 'flex' }}>
+                    <span className="text-white text-xl font-black">{nom.name?.[0]}</span>
                   </div>
                 </div>
-
-                {/* Points badge */}
-                <div className={`
-                  flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl border
-                  ${index === 0 ? 'bg-amber-50 border-amber-200 text-amber-600' :
-                    index === 1 ? 'bg-gray-50 border-gray-200 text-gray-500' :
-                    index === 2 ? 'bg-orange-50 border-orange-200 text-orange-500' :
-                    'bg-[#EAF5FC] border-[#0091DA]/20 text-[#0091DA]'}
-                `}>
-                  <span className="text-lg font-black leading-none">{pts}</span>
-                  <span className="text-xs font-medium opacity-70">pts</span>
+                <div className="p-5">
+                  <h3 className="font-black text-[#1a1a2e] text-sm mb-1">{nom.name}</h3>
+                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5"><Briefcase className="w-3 h-3" />{nom.designation}</div>
+                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-4"><Building2 className="w-3 h-3" />{nom.organisation}</div>
+                  {style ? (
+                    <div className="flex items-center gap-2 py-2 px-3 rounded-xl bg-gray-50 text-gray-600">
+                      <Check className="w-4 h-4" />
+                      <span className="text-xs font-bold">Selected — {style.label}</span>
+                    </div>
+                  ) : (
+                    <div className="py-2 px-3 bg-[#EEF3FF] text-[#00338D] rounded-xl text-xs font-semibold text-center">
+                      Tap to select
+                    </div>
+                  )}
                 </div>
               </div>
             )
@@ -441,40 +320,14 @@ export default function JuryRanking() {
         </div>
       )}
 
-      {/* Points legend */}
-      {nominees.length > 0 && !loading && (
-        <div className="mb-6 p-4 bg-gray-50 border border-gray-100 rounded-xl">
-          <div className="flex items-center gap-2 mb-3">
-            <Info className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Points System</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {nominees.map((_, i) => (
-              <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-lg">
-                <span className="text-xs text-gray-500">#{i + 1}</span>
-                <span className="text-xs font-bold text-[#0091DA]">{getPoints(i)} pts</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Submit / View Results */}
-      {nominees.length > 0 && votingOpen && !loading && (
+      {/* Confirm */}
+      {votingOpen && nominees.length > 0 && !loading && (
         <button
-          onClick={submitted
-            ? () => navigate(`/jury/results${awardFromUrl ? `?award=${awardFromUrl}` : ''}`)
-            : handleSubmit}
-          disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-4 bg-[#00338D] text-white rounded-xl font-bold text-sm hover:bg-[#002a73] disabled:opacity-60 transition-all shadow-md"
+          onClick={() => setConfirmOpen(true)}
+          disabled={!bothPicked}
+          className="w-full flex items-center justify-center gap-2 py-4 bg-[#00338D] text-white rounded-xl font-bold text-sm hover:bg-[#002a73] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
         >
-          {saving ? (
-            <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Submitting...</>
-          ) : submitted ? (
-            <><ArrowRight className="w-4 h-4" /> View Results</>
-          ) : (
-            <><Send className="w-4 h-4" /> Submit My Ranking</>
-          )}
+          {bothPicked ? <><Send className="w-4 h-4" /> Confirm My Vote</> : <>Pick 2 nominees to continue</>}
         </button>
       )}
     </div>

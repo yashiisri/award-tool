@@ -1,7 +1,23 @@
 import { useState, useEffect } from 'react'
-import { Settings, Clock, Calendar } from 'lucide-react'
+import { Settings, Clock, Calendar, Vote, FileEdit } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
+
+function Toggle({ active, onClick }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      position: 'relative', width: 40, height: 20, flexShrink: 0,
+      background: active ? 'var(--kpmg-blue)' : 'var(--border)',
+      border: 'none', cursor: 'pointer', transition: 'background 0.15s',
+    }}>
+      <div style={{
+        position: 'absolute', top: 2, left: active ? 22 : 2,
+        width: 16, height: 16, background: '#fff',
+        transition: 'left 0.15s',
+      }} />
+    </button>
+  )
+}
 
 export default function VoteControl() {
   const [awards, setAwards] = useState([])
@@ -42,93 +58,101 @@ export default function VoteControl() {
     setControls({ ...controls, [awardId]: { ...(controls[awardId] || {}), [field]: value } })
   }
 
-  const Toggle = ({ active, onClick }) => (
-    <button type="button" onClick={onClick}
-      className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${active ? 'bg-[#00338D]' : 'bg-gray-200'}`}>
-      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${active ? 'translate-x-7' : 'translate-x-1'}`} />
-    </button>
-  )
-
   return (
-    <div className="p-8">
-      <PageHeader icon={Settings} title="Vote Control" subtitle="Control when jury and head jury can vote and nominate" accent="#00338D" light="#EEF2FA" />
+    <div style={{ padding: '28px 32px', minHeight: '100vh', background: 'var(--surface)', fontFamily: "'Inter', sans-serif" }}>
+      <PageHeader icon={Settings} title="Vote Control" subtitle="Control when jury and head jury can nominate and vote" />
 
       {awards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
-          <div className="w-14 h-14 bg-[#EEF2FA] rounded-2xl flex items-center justify-center mb-4">
-            <Settings className="w-7 h-7 text-[#00338D]" />
+        <div style={{ padding: '72px 24px', background: '#fff', border: '1px solid var(--border-light)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ width: 48, height: 48, background: 'var(--kpmg-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <Settings size={20} color="#fff" />
           </div>
-          <p className="text-gray-500 font-semibold">No awards to configure</p>
-          <p className="text-gray-400 text-sm mt-1">Create awards first to set up vote controls.</p>
+          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: 'var(--kpmg-navy)', marginBottom: 6 }}>No awards to configure</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Create awards first to set up vote controls.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {awards.map(award => {
             const ctrl = controls[award.id] || {}
             return (
-              <div key={award.id} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-start justify-between mb-5">
+              <div key={award.id} style={{ background: '#fff', border: '1px solid var(--border-light)', borderTop: '3px solid var(--kpmg-blue)' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '18px 22px', borderBottom: '1px solid var(--border-light)' }}>
                   <div>
-                    <h3 className="font-black text-[#1a1a2e] text-base">{award.name}</h3>
-                    <p className="text-gray-400 text-xs mt-0.5">{award.description}</p>
+                    <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600, color: 'var(--kpmg-navy)', margin: 0 }}>{award.name}</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 3 }}>{award.description}</p>
                   </div>
-                  <button onClick={() => save(award.id)} disabled={saving[award.id]}
-                    className="px-4 py-2 bg-[#00338D] text-white rounded-xl text-xs font-semibold hover:bg-[#002a73] disabled:opacity-50 transition-colors">
-                    {saving[award.id] ? 'Saving...' : 'Save'}
+                  <button onClick={() => save(award.id)} disabled={saving[award.id]} style={{
+                    padding: '8px 18px', background: saving[award.id] ? '#9BA8B5' : 'var(--kpmg-blue)', color: '#fff',
+                    border: 'none', fontSize: 11, fontWeight: 700, cursor: saving[award.id] ? 'not-allowed' : 'pointer',
+                    letterSpacing: '0.06em', textTransform: 'uppercase', transition: 'background 0.15s', flexShrink: 0,
+                  }}
+                  onMouseEnter={e => { if (!saving[award.id]) e.currentTarget.style.background = 'var(--kpmg-navy)' }}
+                  onMouseLeave={e => { if (!saving[award.id]) e.currentTarget.style.background = 'var(--kpmg-blue)' }}>
+                    {saving[award.id] ? 'Saving…' : 'Save'}
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, background: 'var(--border-light)' }}>
                   {/* Voting toggle */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <div>
-                      <div className="font-semibold text-[#1a1a2e] text-sm">Voting Enabled</div>
-                      <div className="text-gray-400 text-xs mt-0.5">Allow jury to cast votes</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', background: '#fff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Vote size={15} color="var(--kpmg-blue)" strokeWidth={1.6} />
+                      <div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>Voting Enabled</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 1 }}>Allow jury to cast votes</div>
+                      </div>
                     </div>
                     <Toggle active={ctrl.voting_enabled || false} onClick={() => update(award.id, 'voting_enabled', !ctrl.voting_enabled)} />
                   </div>
 
                   {/* Nomination toggle */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <div>
-                      <div className="font-semibold text-[#1a1a2e] text-sm">Nominations Open</div>
-                      <div className="text-gray-400 text-xs mt-0.5">Allow adding/editing nominees</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', background: '#fff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <FileEdit size={15} color="var(--kpmg-blue)" strokeWidth={1.6} />
+                      <div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>Nominations Open</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 1 }}>Allow adding/editing nominees</div>
+                      </div>
                     </div>
                     <Toggle active={ctrl.nomination_enabled || false} onClick={() => update(award.id, 'nomination_enabled', !ctrl.nomination_enabled)} />
                   </div>
 
                   {/* Voting window */}
-                  <div className="p-4 bg-gray-50 rounded-xl">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Calendar className="w-4 h-4 text-[#00338D]" />
-                      <span className="font-semibold text-[#1a1a2e] text-sm">Voting Start</span>
+                  <div style={{ padding: '16px 22px', background: '#fff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <Calendar size={13} color="var(--kpmg-blue)" />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Voting Start</span>
                     </div>
                     <input type="datetime-local" value={ctrl.voting_start || ''}
                       onChange={e => update(award.id, 'voting_start', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-[#1a1a2e] text-sm focus:outline-none focus:ring-2 focus:ring-[#00338D]/30" />
+                      style={inputSt}
+                      onFocus={e => e.target.style.borderColor = 'var(--kpmg-blue)'}
+                      onBlur={e => e.target.style.borderColor = 'var(--border)'} />
                   </div>
 
-                  <div className="p-4 bg-gray-50 rounded-xl">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Clock className="w-4 h-4 text-[#00338D]" />
-                      <span className="font-semibold text-[#1a1a2e] text-sm">Voting End</span>
+                  <div style={{ padding: '16px 22px', background: '#fff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <Clock size={13} color="var(--kpmg-blue)" />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Voting End</span>
                     </div>
                     <input type="datetime-local" value={ctrl.voting_end || ''}
                       onChange={e => update(award.id, 'voting_end', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-[#1a1a2e] text-sm focus:outline-none focus:ring-2 focus:ring-[#00338D]/30" />
+                      style={inputSt}
+                      onFocus={e => e.target.style.borderColor = 'var(--kpmg-blue)'}
+                      onBlur={e => e.target.style.borderColor = 'var(--border)'} />
                   </div>
                 </div>
 
                 {/* Status indicator */}
-                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100">
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${ctrl.voting_enabled ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${ctrl.voting_enabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 22px', borderTop: '1px solid var(--border-light)', background: '#FAFBFD' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, background: ctrl.voting_enabled ? '#F0FDF4' : '#F4F5F7', color: ctrl.voting_enabled ? '#15803D' : 'var(--text-muted)' }}>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: ctrl.voting_enabled ? '#22c55e' : '#9BA8B5' }} />
                     Voting {ctrl.voting_enabled ? 'Open' : 'Closed'}
-                  </div>
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${ctrl.nomination_enabled ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${ctrl.nomination_enabled ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'}`} />
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, background: ctrl.nomination_enabled ? '#EEF3FF' : '#F4F5F7', color: ctrl.nomination_enabled ? 'var(--kpmg-blue)' : 'var(--text-muted)' }}>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: ctrl.nomination_enabled ? 'var(--kpmg-blue)' : '#9BA8B5' }} />
                     Nominations {ctrl.nomination_enabled ? 'Open' : 'Closed'}
-                  </div>
+                  </span>
                 </div>
               </div>
             )
@@ -137,4 +161,15 @@ export default function VoteControl() {
       )}
     </div>
   )
+}
+
+const inputSt = {
+  width: '100%', padding: '8px 10px',
+  background: '#fff',
+  border: '1px solid var(--border)',
+  borderLeft: '2px solid var(--border)',
+  fontSize: 12, color: 'var(--text-primary)',
+  outline: 'none', boxSizing: 'border-box',
+  transition: 'border-color 0.15s',
+  fontFamily: 'inherit',
 }

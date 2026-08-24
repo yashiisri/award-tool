@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import auth, admin, jury, head_jury, audit
 from routes.routes_ai_search import router as ai_search_router
 from database import connect_db, close_db
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
 
 app = FastAPI(title="KPMG Award Management Tool")
 

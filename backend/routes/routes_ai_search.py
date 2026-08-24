@@ -48,9 +48,11 @@ async def run_ai_search(
     """
     Full AI nominee search pipeline.
     1. Classify entity type (person / company / both)
-    2. Generate num_nominees × 3 candidate names via Groq
-    3. Enrich each candidate from Wikipedia + Forbes + Fortune + DDG + Crunchbase
-    4. Build structured dossiers via Groq
+    2. Search the real web (Tavily primary, DuckDuckGo fallback) and extract
+       candidate names strictly from those results — never from LLM recall
+    3. Verify + enrich each candidate via Wikipedia; drop anything with no
+       real supporting evidence
+    4. Build structured dossiers via Groq, grounded in the collected evidence
     5. Save exactly num_nominees dossiers to nominees collection
     """
     if user["role"] != "admin":
@@ -85,35 +87,26 @@ async def run_ai_search(
         {"$set": {"entity_type": entity_type}},
     )
 
-    # ── Step 2: Generate candidate names ──────────────────────────────────────
-    from services.name_generator import generate_candidate_names
-    candidates = await generate_candidate_names(
+    # ── Step 2+3: Grounded discovery — real web search, then Wikipedia verify ──
+    from services.research_engine import discover_all
+    enriched, total_generated = await discover_all(
         award_name=req.award_name,
-        award_description=req.award_description,
-        num_nominees=req.num_nominees,
-        evaluation_criteria=req.evaluation_criteria,
+        award_desc=req.award_description,
         entity_type=entity_type,
+        target_count=req.num_nominees,
     )
-    total_generated = len(candidates)
-    logger.info("[AISearch] Generated %d candidate names", total_generated)
-
-    if not candidates:
-        raise HTTPException(
-            status_code=422,
-            detail="Could not generate any candidate names. Check award description.",
-        )
-
-    # ── Step 3: Multi-source enrichment ───────────────────────────────────────
-    from services.enrichment import enrich_all_candidates
-    award_context = f"{req.award_name}: {req.award_description}"
-    enriched = await enrich_all_candidates(candidates, award_context)
     total_validated = len(enriched)
-    logger.info("[AISearch] Enriched: %d / %d passed validation", total_validated, total_generated)
+    logger.info(
+        "[AISearch] Extracted %d candidates from real search results, %d verified",
+        total_generated, total_validated,
+    )
 
     if not enriched:
         raise HTTPException(
             status_code=422,
-            detail="No candidates could be validated. Try a different award description.",
+            detail="No candidates could be found and verified for this award. This can happen if the "
+                   "AI provider was briefly rate-limited — wait a few seconds and try again, or try a "
+                   "more specific award description.",
         )
 
     # ── Step 4: Build dossiers ─────────────────────────────────────────────────
@@ -163,6 +156,7 @@ async def run_ai_search(
                 "key_achievements":    dossier.get("key_achievements", []),
                 "financials":          dossier.get("financials", {}),
                 "awards_recognitions": dossier.get("awards_recognitions", []),
+                "points_of_concern":   dossier.get("points_of_concern", []),
                 "wikipedia_url":       dossier.get("wikipedia_url", ""),
                 "bio":                 dossier.get("bio", ""),
                 # Person-specific

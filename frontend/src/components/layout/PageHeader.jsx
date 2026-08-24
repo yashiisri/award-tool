@@ -1,53 +1,49 @@
-export default function PageHeader({ icon: Icon, title, subtitle, action, accent = '#00338D', light = '#EEF2FF' }) {
+/**
+ * PageHeader — the standard section header used across every dashboard screen.
+ *
+ * `accent` optionally overrides the icon box + title colour for role-specific
+ * pages (jury = kpmg-light-blue, head jury = kpmg-purple) while keeping the
+ * same sharp-cornered, serif-headline executive treatment everywhere. Omit it
+ * to get the default navy/blue admin treatment.
+ */
+export default function PageHeader({ icon: Icon, title, subtitle, action, accent }) {
+  const iconColor = accent || 'var(--kpmg-blue)'
+  const titleColor = accent || 'var(--kpmg-navy)'
   return (
     <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
       marginBottom: 28,
       paddingBottom: 20,
-      borderBottom: '1px solid #F0F4F8',
+      borderBottom: '1px solid var(--border-light)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         {Icon && (
           <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            background: light,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: 38, height: 38,
+            background: iconColor,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <Icon size={18} color={accent} strokeWidth={1.8} />
+            <Icon size={16} color="#fff" strokeWidth={1.6} />
           </div>
         )}
         <div>
           <h1 style={{
-            fontSize: 20,
-            fontWeight: 700,
-            color: '#0A1628',
-            letterSpacing: '-0.025em',
-            lineHeight: 1.2,
-            margin: 0,
+            fontFamily: "'Playfair Display', serif",
+            fontSize: 20, fontWeight: 600,
+            color: titleColor,
+            letterSpacing: '-0.01em', lineHeight: 1.2, margin: 0,
           }}>
             {title}
           </h1>
           {subtitle && (
-            <p style={{
-              color: '#9BA8B5',
-              fontSize: 13,
-              fontWeight: 400,
-              marginTop: 3,
-              lineHeight: 1.5,
-            }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 3, fontWeight: 400 }}>
               {subtitle}
             </p>
           )}
         </div>
       </div>
-      {action && <div>{action}</div>}
+      {action && <div style={{ flexShrink: 0 }}>{action}</div>}
     </div>
   )
 }

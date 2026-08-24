@@ -3,8 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { BarChart3, Lock, Trophy } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
-
-const MEDAL = ['🥇', '🥈', '🥉']
+import RankMedal from '../layout/RankMedal'
 
 export default function JuryResults() {
   const [searchParams] = useSearchParams()
@@ -49,14 +48,14 @@ export default function JuryResults() {
         icon={BarChart3}
         title="Results"
         subtitle="Final rankings published by the admin"
-        accent="#0091DA"
-        light="#EAF5FC"
+        accent="#00338D"
+        light="#EEF3FF"
       />
 
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-2 border-[#0091DA] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#00338D] border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
@@ -84,8 +83,8 @@ export default function JuryResults() {
                 <div key={award.id}>
                   {/* Award title */}
                   <div className="flex items-center gap-3 mb-5">
-                    <div className="w-9 h-9 bg-[#EAF5FC] rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Trophy className="w-4 h-4 text-[#0091DA]" />
+                    <div className="w-9 h-9 bg-[#EEF3FF] rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Trophy className="w-4 h-4 text-[#00338D]" />
                     </div>
                     <h2 className="font-black text-[#1a1a2e] text-base">{award.name}</h2>
                   </div>
@@ -101,9 +100,14 @@ export default function JuryResults() {
                           return nom ? (
                             <div key={nom.id}
                               className={`bg-white border border-gray-100 rounded-2xl p-4 flex flex-col items-center justify-end ${heights[i]} ${glow}`}>
-                              <div className="text-3xl mb-1">{MEDAL[pos]}</div>
+                              {pos === 0 && (
+                                <span className="mb-2 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white" style={{ background: 'linear-gradient(90deg,#D4A017,#C9A84C)' }}>
+                                  Winner
+                                </span>
+                              )}
+                              <div className="mb-1 flex justify-center"><RankMedal rank={pos + 1} size={36} /></div>
                               <div className="font-black text-[#1a1a2e] text-xs text-center leading-tight">{nom.name}</div>
-                              <div className="text-[#0091DA] font-black text-sm mt-1">{nom.total_score} pts</div>
+                              <div className="text-[#00338D] font-black text-sm mt-1">{nom.total_score} vote{nom.total_score === 1 ? '' : 's'}</div>
                             </div>
                           ) : <div key={i} />
                         })}
@@ -118,28 +122,28 @@ export default function JuryResults() {
                       {results.map((nom, i) => (
                         <div key={nom.id}
                           className={`flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors ${i !== results.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                          <div className="w-8 text-center flex-shrink-0">
-                            {i < 3
-                              ? <span className="text-xl">{MEDAL[i]}</span>
-                              : <span className="text-gray-400 font-bold text-sm">#{i + 1}</span>}
+                          <div className="w-8 flex items-center justify-center flex-shrink-0">
+                            <RankMedal rank={i + 1} size={24} />
                           </div>
-                          <div className="w-10 h-10 bg-[#EAF5FC] rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            {nom.photo_url
-                              ? <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                              : <span className="text-[#0091DA] font-black text-sm">{nom.name?.[0]}</span>}
+                          <div className="w-10 h-10 bg-[#EEF3FF] rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {nom.photo_url && (
+                              <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover"
+                                onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
+                            )}
+                            <span className="text-[#00338D] font-black text-sm" style={{ display: nom.photo_url ? 'none' : 'flex' }}>{nom.name?.[0]}</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-bold text-[#1a1a2e] text-sm truncate">{nom.name}</div>
                             <div className="text-gray-400 text-xs truncate">{nom.organisation}</div>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <div className="font-black text-[#0091DA] text-base">{nom.total_score || 0}</div>
-                            <div className="text-gray-400 text-xs">points</div>
+                            <div className="font-black text-[#00338D] text-base">{nom.total_score || 0}</div>
+                            <div className="text-gray-400 text-xs">votes</div>
                           </div>
                           <div className="w-20 flex-shrink-0">
                             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-gradient-to-r from-[#0091DA] to-[#00338D] rounded-full"
+                                className="h-full bg-gradient-to-r from-[#00338D] to-[#00338D] rounded-full"
                                 style={{ width: `${((nom.total_score || 0) / maxScore) * 100}%` }}
                               />
                             </div>

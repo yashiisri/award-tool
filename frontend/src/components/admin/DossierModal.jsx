@@ -1,6 +1,7 @@
 import { useRef } from 'react'
-import { X, Printer, Building2, Briefcase, CheckCircle, AlertTriangle, Star, TrendingUp, Trophy, Sparkles } from 'lucide-react'
+import { X, Printer, CheckCircle, AlertTriangle } from 'lucide-react'
 import kpmgLogo from '../../kpmg-logo.png'
+import { filterDisplaySources } from '../../utils/sourceDisplay'
 
 function parseRationale(nominee) {
   const raw = nominee.rationale || ''
@@ -72,29 +73,32 @@ export default function DossierModal({ award, nominees, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col border border-gray-200">
+      <div className="bg-white shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col border border-gray-200">
 
         {/* Modal toolbar */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-gray-50 rounded-t-2xl">
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0 bg-white flex-shrink-0" style={{ borderBottom: '2px solid var(--kpmg-blue)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#00338D] rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 flex items-center justify-center flex-shrink-0" style={{ background: 'var(--kpmg-blue)' }}>
               <Printer className="w-4 h-4 text-white" />
             </div>
             <div>
-              <p className="font-bold text-[#0A1628] text-sm">Award Dossier</p>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600, fontSize: 15, color: 'var(--kpmg-navy)' }}>Award Dossier</p>
               <p className="text-xs text-gray-400">{award.name} · {nominees.length} nominee{nominees.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-[#00338D] text-white rounded-xl text-sm font-semibold hover:bg-[#002a73] transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 text-white text-xs font-bold uppercase tracking-wider transition-colors"
+              style={{ background: 'var(--kpmg-blue)', letterSpacing: '0.04em' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--kpmg-navy)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--kpmg-blue)'}
             >
-              <Printer className="w-4 h-4" /> Print / Save PDF
+              <Printer className="w-3.5 h-3.5" /> Print / Save PDF
             </button>
             <button
               onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-all"
+              className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all"
             >
               <X className="w-4 h-4" />
             </button>
@@ -171,9 +175,7 @@ export default function DossierModal({ award, nominees, onClose }) {
             {/* ── Nominee profiles ── */}
             {nominees.map((nom, i) => {
               const parsed = parseRationale(nom)
-              const score = nom.rationale_data?.confidence_score ?? 0
-              const pct = Math.round(score * 100)
-              const sources = nom.rationale_data?.source_links || nom.sources || []
+              const sources = filterDisplaySources(nom.rationale_data?.source_links || nom.sources || [])
 
               return (
                 <div key={nom.id} className={`dossier-profile ${i > 0 ? 'page-break' : ''}`}>
@@ -181,33 +183,24 @@ export default function DossierModal({ award, nominees, onClose }) {
                   {/* Profile header */}
                   <div className="dossier-profile-header">
                     <div className="dossier-profile-avatar">
-                      {nom.photo_url
-                        ? <img src={nom.photo_url} alt={nom.name} className="dossier-avatar-img" onError={e => { e.target.style.display = 'none' }} />
-                        : <span className="dossier-avatar-initials">{getInitials(nom.name)}</span>
-                      }
+                      {nom.photo_url && (
+                        <img src={nom.photo_url} alt={nom.name} className="dossier-avatar-img"
+                          onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
+                      )}
+                      <span className="dossier-avatar-initials" style={{ display: nom.photo_url ? 'none' : 'flex' }}>{getInitials(nom.name)}</span>
                     </div>
                     <div className="dossier-profile-meta">
                       <div className="dossier-profile-badges">
                         <span className="dossier-nominee-num">Nominee {String(i + 1).padStart(2, '0')}</span>
-                        {nom.validated && <span className="dossier-badge-approved">✓ Approved</span>}
-                        {nom.red_flagged && <span className="dossier-badge-flagged">⚠ Flagged</span>}
-                        {nom.ai_generated && <span className="dossier-badge-ai">AI Sourced</span>}
+                        {nom.validated && <span className="dossier-badge-approved"><CheckCircle size={11} style={{ marginRight: 3, verticalAlign: -1 }} />Approved</span>}
+                        {nom.red_flagged && <span className="dossier-badge-flagged"><AlertTriangle size={11} style={{ marginRight: 3, verticalAlign: -1 }} />Flagged</span>}
                       </div>
                       <h2 className="dossier-profile-name">{nom.name}</h2>
                       <div className="dossier-profile-role">
-                        <span>✦ {nom.designation}</span>
+                        <span>{nom.designation}</span>
                         <span className="dossier-dot">·</span>
                         <span>{nom.organisation}</span>
                       </div>
-                      {pct > 0 && (
-                        <div className="dossier-score-row">
-                          <span className="dossier-score-label">AI Confidence Score</span>
-                          <div className="dossier-score-bar-wrap">
-                            <div className="dossier-score-bar" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="dossier-score-pct">{pct}%</span>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -261,10 +254,27 @@ export default function DossierModal({ award, nominees, onClose }) {
                       )}
                     </div>
 
+                    {/* Points to consider — AI-surfaced from real news search, never invented */}
+                    {(nom.rationale_data?.points_of_concern || []).length > 0 && (
+                      <div className="dossier-field dossier-highlight-amber">
+                        <p className="dossier-field-label" style={{ color: '#B45309', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <AlertTriangle size={11} />Points to Consider <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: '#A88332' }}>&nbsp;· from public reporting</span>
+                        </p>
+                        <ul className="dossier-list">
+                          {nom.rationale_data.points_of_concern.map((item, j) => (
+                            <li key={j} className="dossier-list-item">
+                              <span className="dossier-bullet" style={{ background: '#D97706' }} />
+                              <span style={{ color: '#92400E' }}>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     {/* Flag reason */}
                     {nom.red_flagged && nom.red_flag_reason && (
                       <div className="dossier-field dossier-highlight-red">
-                        <p className="dossier-field-label" style={{ color: '#DC2626' }}>⚠ Flag Reason</p>
+                        <p className="dossier-field-label" style={{ color: '#DC2626', display: 'flex', alignItems: 'center', gap: 5 }}><AlertTriangle size={11} />Flag Reason</p>
                         <p className="dossier-field-text" style={{ color: '#DC2626' }}>{nom.red_flag_reason}</p>
                         {nom.red_flagged_by && <p style={{ color: '#F87171', fontSize: 11, marginTop: 4 }}>Raised by: {nom.red_flagged_by}</p>}
                       </div>
@@ -275,7 +285,7 @@ export default function DossierModal({ award, nominees, onClose }) {
                       <div className="dossier-field">
                         <p className="dossier-field-label">Verified Sources</p>
                         <div className="dossier-source-tags">
-                          {sources.map((s, j) => <span key={j} className="dossier-source-tag">{s}</span>)}
+                          {sources.map((s, j) => <span key={j} className="dossier-source-tag">{s.label}</span>)}
                         </div>
                       </div>
                     )}
@@ -309,7 +319,7 @@ export default function DossierModal({ award, nominees, onClose }) {
 
         /* Cover */
         .dossier-cover {
-          background: linear-gradient(145deg, #00338D 0%, #004ccc 60%, #0091DA 100%);
+          background: linear-gradient(145deg, #00338D 0%, #004ccc 60%, #00338D 100%);
           min-height: 420px;
           padding: 40px 48px;
           display: flex;
@@ -334,8 +344,9 @@ export default function DossierModal({ award, nominees, onClose }) {
           letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 12px;
         }
         .dossier-cover-title {
-          color: white; font-size: 36px; font-weight: 900;
-          letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 14px; max-width: 600px;
+          font-family: 'Playfair Display', serif;
+          color: white; font-size: 36px; font-weight: 600;
+          letter-spacing: -0.01em; line-height: 1.15; margin-bottom: 14px; max-width: 600px;
         }
         .dossier-cover-desc {
           color: rgba(255,255,255,0.65); font-size: 14px; line-height: 1.7; max-width: 560px; margin-bottom: 36px;
@@ -360,7 +371,8 @@ export default function DossierModal({ award, nominees, onClose }) {
           text-transform: uppercase; margin-bottom: 6px;
         }
         .dossier-section-title {
-          color: #0A1628; font-size: 22px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 20px;
+          font-family: 'Playfair Display', serif;
+          color: #0A1628; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 20px;
         }
 
         /* Table of contents */
@@ -390,7 +402,7 @@ export default function DossierModal({ award, nominees, onClose }) {
         }
         .dossier-profile-avatar {
           width: 80px; height: 80px; border-radius: 14px; overflow: hidden; flex-shrink: 0;
-          background: linear-gradient(135deg, #00338D, #0091DA);
+          background: linear-gradient(135deg, #00338D, #00338D);
           display: flex; align-items: center; justify-content: center;
           border: 2px solid rgba(0,51,141,0.15);
         }
@@ -399,13 +411,13 @@ export default function DossierModal({ award, nominees, onClose }) {
         .dossier-profile-meta { flex: 1; min-width: 0; }
         .dossier-profile-badges { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
         .dossier-nominee-num { color: #00338D; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
-        .dossier-profile-name { color: #0A1628; font-size: 24px; font-weight: 900; letter-spacing: -0.025em; line-height: 1.2; margin-bottom: 6px; }
+        .dossier-profile-name { font-family: 'Playfair Display', serif; color: #0A1628; font-size: 24px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 6px; }
         .dossier-profile-role { color: #6B7A8D; font-size: 13px; margin-bottom: 12px; display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
         .dossier-dot { margin: 0 8px; opacity: 0.4; }
         .dossier-score-row { display: flex; align-items: center; gap: 10px; }
         .dossier-score-label { color: #9BA8B5; font-size: 11px; font-weight: 600; white-space: nowrap; }
         .dossier-score-bar-wrap { flex: 1; max-width: 160px; height: 5px; background: #E8ECF0; border-radius: 3px; overflow: hidden; }
-        .dossier-score-bar { height: 100%; background: linear-gradient(90deg, #0091DA, #00338D); border-radius: 3px; }
+        .dossier-score-bar { height: 100%; background: linear-gradient(90deg, #00338D, #00338D); border-radius: 3px; }
         .dossier-score-pct { color: #00338D; font-size: 11px; font-weight: 700; }
 
         /* Profile body */
@@ -418,11 +430,12 @@ export default function DossierModal({ award, nominees, onClose }) {
         .dossier-field-text { color: #3D4F63; font-size: 13px; line-height: 1.75; }
         .dossier-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
         .dossier-list-item { display: flex; align-items: flex-start; gap: 10px; }
-        .dossier-bullet { width: 5px; height: 5px; border-radius: 50%; background: #0091DA; margin-top: 6px; flex-shrink: 0; }
+        .dossier-bullet { width: 5px; height: 5px; border-radius: 50%; background: #00338D; margin-top: 6px; flex-shrink: 0; }
         .dossier-bullet-gold { background: #F59E0B; }
         .dossier-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .dossier-highlight-green { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px; padding: 14px 16px; }
         .dossier-highlight-red { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 14px 16px; }
+        .dossier-highlight-amber { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px 16px; }
         .dossier-source-tags { display: flex; flex-wrap: wrap; gap: 6px; }
         .dossier-source-tag {
           padding: 3px 10px; background: #EEF2FF; color: #00338D;
@@ -446,10 +459,10 @@ const PRINT_STYLES = `
   .dossier-section { page-break-after: always; }
   .dossier-profile { page-break-inside: avoid; }
   .page-break { page-break-before: always; }
-  .dossier-cover { background: linear-gradient(145deg, #00338D 0%, #004ccc 60%, #0091DA 100%) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .dossier-cover { background: linear-gradient(145deg, #00338D 0%, #004ccc 60%, #00338D 100%) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .dossier-profile-header { background: linear-gradient(135deg, #F7F9FC 0%, #EEF2FA 100%) !important; }
-  .dossier-profile-avatar { background: linear-gradient(135deg, #00338D, #0091DA) !important; }
-  .dossier-score-bar { background: linear-gradient(90deg, #0091DA, #00338D) !important; }
+  .dossier-profile-avatar { background: linear-gradient(135deg, #00338D, #00338D) !important; }
+  .dossier-score-bar { background: linear-gradient(90deg, #00338D, #00338D) !important; }
   .dossier-cover-title { color: white !important; }
   .dossier-cover-desc { color: rgba(255,255,255,0.65) !important; }
   .dossier-stat-num { color: white !important; }

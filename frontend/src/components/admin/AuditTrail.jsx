@@ -1,26 +1,12 @@
 import { useState, useEffect } from 'react'
-import { FileText, Clock, RefreshCw, Download } from 'lucide-react'
+import { FileText, Clock, RefreshCw } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../layout/PageHeader'
 
-const ACTION_STYLES = {
-  create_award:       'bg-blue-50 text-blue-700 border-blue-200',
-  create_category:    'bg-blue-50 text-blue-700 border-blue-200',
-  add_nominee:        'bg-green-50 text-green-700 border-green-200',
-  delete_nominee:     'bg-red-50 text-red-700 border-red-200',
-  validate_nominee:   'bg-teal-50 text-teal-700 border-teal-200',
-  vote:               'bg-yellow-50 text-yellow-700 border-yellow-200',
-  add_comment:        'bg-purple-50 text-purple-700 border-purple-200',
-  red_flag_nominee:   'bg-orange-50 text-orange-700 border-orange-200',
-  update_vote_control:'bg-indigo-50 text-indigo-700 border-indigo-200',
-  create_user:        'bg-cyan-50 text-cyan-700 border-cyan-200',
-  delete_award:       'bg-red-50 text-red-700 border-red-200',
-}
-
 const ROLE_STYLES = {
-  admin:     'bg-[#EEF2FA] text-[#00338D]',
-  jury:      'bg-[#EAF5FC] text-[#0091DA]',
-  head_jury: 'bg-[#F5EEF8] text-[#7F3F98]',
+  admin:     { bg: '#EEF3FF', color: 'var(--kpmg-blue)' },
+  jury:      { bg: '#EEF3FF', color: 'var(--kpmg-blue)' },
+  head_jury: { bg: '#EEF3FF', color: 'var(--kpmg-blue)' },
 }
 
 export default function AuditTrail() {
@@ -40,77 +26,94 @@ export default function AuditTrail() {
   const filtered = filter === 'all' ? logs : logs.filter(l => l.user_role === filter)
 
   return (
-    <div className="p-8">
-      <PageHeader icon={FileText} title="Audit Trail" subtitle="Complete timestamped log of all platform activity" accent="#00338D" light="#EEF2FA"
+    <div style={{ padding: '28px 32px', minHeight: '100vh', background: 'var(--surface)', fontFamily: "'Inter', sans-serif" }}>
+      <PageHeader
+        icon={FileText}
+        title="Audit Trail"
+        subtitle="Complete timestamped log of all platform activity"
         action={
-          <button onClick={fetchLogs} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-[#00338D] hover:border-[#00338D]/30 text-sm font-medium transition-all shadow-sm">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          <button onClick={fetchLogs} style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '9px 16px', background: '#fff', color: 'var(--text-secondary)',
+            border: '1px solid var(--border)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+          }}>
+            <RefreshCw size={13} style={{ animation: loading ? 'spin 0.7s linear infinite' : 'none' }} /> Refresh
           </button>
         }
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div style={{ display: 'flex', gap: 1, marginBottom: 24, background: '#fff', border: '1px solid var(--border-light)' }}>
         {[
-          { label: 'Total Events', value: logs.length, color: '#00338D' },
-          { label: 'Admin Actions', value: logs.filter(l => l.user_role === 'admin').length, color: '#00338D' },
-          { label: 'Jury Actions', value: logs.filter(l => l.user_role === 'jury').length, color: '#0091DA' },
-          { label: 'Head Jury Actions', value: logs.filter(l => l.user_role === 'head_jury').length, color: '#7F3F98' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <div className="text-2xl font-black mb-1" style={{ color }}>{value}</div>
-            <div className="text-gray-400 text-xs font-medium">{label}</div>
+          { label: 'Total Events', value: logs.length },
+          { label: 'Admin Actions', value: logs.filter(l => l.user_role === 'admin').length },
+          { label: 'Jury Actions', value: logs.filter(l => l.user_role === 'jury').length },
+          { label: 'Head Jury Actions', value: logs.filter(l => l.user_role === 'head_jury').length },
+        ].map((s, i) => (
+          <div key={i} style={{ flex: 1, padding: '16px 24px', borderRight: i < 3 ? '1px solid var(--border-light)' : 'none' }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 600, color: 'var(--kpmg-blue)', lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* Role filter */}
-      <div className="flex gap-2 mb-5">
+      <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
         {[['all', 'All Roles'], ['admin', 'Admin'], ['jury', 'Jury'], ['head_jury', 'Head Jury']].map(([val, label]) => (
-          <button key={val} onClick={() => setFilter(val)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${filter === val ? 'bg-[#00338D] text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-[#00338D]/30'}`}>
+          <button key={val} onClick={() => setFilter(val)} style={{
+            padding: '7px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+            background: filter === val ? 'var(--kpmg-blue)' : '#fff',
+            color: filter === val ? '#fff' : 'var(--text-secondary)',
+            border: `1px solid ${filter === val ? 'var(--kpmg-blue)' : 'var(--border)'}`,
+          }}>
             {label}
           </button>
         ))}
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-        <div className="grid grid-cols-12 px-6 py-4 border-b border-gray-100 bg-gray-50 gap-4">
-          {[['col-span-2', 'User'], ['col-span-1', 'Role'], ['col-span-2', 'Action'], ['col-span-5', 'Details'], ['col-span-2', 'Timestamp']].map(([cls, h]) => (
-            <div key={h} className={`${cls} text-xs font-bold text-gray-500 uppercase tracking-wider`}>{h}</div>
+      <div style={{ background: '#fff', border: '1px solid var(--border-light)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.8fr 1.5fr 3.5fr 1.7fr', padding: '12px 20px', borderBottom: '1px solid var(--border-light)', background: '#FAFBFD', gap: 12 }}>
+          {['User', 'Role', 'Action', 'Details', 'Timestamp'].map(h => (
+            <div key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{h}</div>
           ))}
         </div>
 
         {filtered.length === 0 ? (
-          <div className="px-6 py-16 text-center text-gray-400 text-sm">No audit logs yet.</div>
+          <div style={{ padding: '64px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No audit logs yet.</div>
         ) : (
-          filtered.map((log, i) => (
-            <div key={log.id} className={`grid grid-cols-12 px-6 py-4 items-start gap-4 ${i !== filtered.length - 1 ? 'border-b border-gray-50' : ''} hover:bg-gray-50/50 transition-colors`}>
-              <div className="col-span-2 flex items-center gap-2">
-                <div className="w-7 h-7 bg-[#EEF2FA] rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#00338D] text-xs font-black">{log.user_id?.[0]?.toUpperCase()}</span>
+          filtered.map((log, i) => {
+            const role = ROLE_STYLES[log.user_role] || { bg: '#F4F5F7', color: 'var(--text-secondary)' }
+            return (
+              <div key={log.id} style={{
+                display: 'grid', gridTemplateColumns: '1.5fr 0.8fr 1.5fr 3.5fr 1.7fr', padding: '14px 20px', gap: 12, alignItems: 'flex-start',
+                borderBottom: i !== filtered.length - 1 ? '1px solid var(--border-light)' : 'none',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <div style={{ width: 24, height: 24, background: '#EEF3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ color: 'var(--kpmg-blue)', fontSize: 10, fontWeight: 700 }}>{log.user_id?.[0]?.toUpperCase()}</span>
+                  </div>
+                  <span style={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.user_id}</span>
                 </div>
-                <span className="text-[#1a1a2e] text-sm font-medium truncate">{log.user_id}</span>
+                <div>
+                  <span style={{ padding: '2px 7px', fontSize: 10, fontWeight: 700, background: role.bg, color: role.color, letterSpacing: '0.02em' }}>
+                    {log.user_role}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ padding: '2px 7px', fontSize: 10, fontWeight: 600, background: '#F4F5F7', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                    {log.action?.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 11, fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.6 }}>
+                  {JSON.stringify(log.details)}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 11 }}>
+                  <Clock size={11} style={{ flexShrink: 0 }} />
+                  {log.timestamp ? new Date(log.timestamp).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                </div>
               </div>
-              <div className="col-span-1">
-                <span className={`px-2 py-1 text-xs rounded-lg font-medium ${ROLE_STYLES[log.user_role] || 'bg-gray-100 text-gray-600'}`}>
-                  {log.user_role}
-                </span>
-              </div>
-              <div className="col-span-2">
-                <span className={`px-2 py-1 text-xs rounded-lg font-medium border ${ACTION_STYLES[log.action] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                  {log.action?.replace(/_/g, ' ')}
-                </span>
-              </div>
-              <div className="col-span-5 text-gray-500 text-xs font-mono break-all leading-relaxed">
-                {JSON.stringify(log.details)}
-              </div>
-              <div className="col-span-2 flex items-center gap-1.5 text-gray-400 text-xs">
-                <Clock className="w-3 h-3 flex-shrink-0" />
-                {log.timestamp ? new Date(log.timestamp).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
-              </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>

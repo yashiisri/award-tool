@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     GOOGLE_SEARCH_API_KEY: Optional[str] = None
     GOOGLE_SEARCH_CX: Optional[str] = None
     TAVILY_API_KEY: Optional[str] = None
+    NEWS_API_KEY: Optional[str] = None
 
     model_config = {
         "env_file": str(ENV_FILE),

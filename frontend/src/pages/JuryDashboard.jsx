@@ -35,7 +35,7 @@ function useSelectedAward() {
 
 export default function JuryDashboard({ onLogout, username }) {
   return (
-    <div className="flex h-screen bg-[#F4F5F7] overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--surface)' }}>
       <JuryDashboardInner onLogout={onLogout} username={username} />
     </div>
   )
