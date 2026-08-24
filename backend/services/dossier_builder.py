@@ -93,7 +93,7 @@ _PERSON_SCHEMA = """{
   "awards_recognitions": ["Forbes 40 Under 40", "TIME 100"],
   "points_of_concern": [],
   "confidence_score": 0.87,
-  "relevance_reason": "1-2 sentences on why they fit this award",
+  "relevance_reason": "3-4 sentences of in-depth reasoning that validates why this person is a strong candidate for THIS SPECIFIC award — explicitly connect their record to the award's evaluation criteria, name the criteria being satisfied, and explain the judgement, not just restate their achievements",
   "source_links": ["url1"]
 }"""
 
@@ -193,11 +193,14 @@ about_nominee: 3 bullet points covering:
   - Sector classification, certifications, or major industry recognition
   - Operational scale — locations, subsidiaries, key products/services
 
-selection_rationale: 3-5 bullet points covering:
+selection_rationale: 4-6 bullet points covering:
   - Specific financial figures (revenue in INR/USD crore, order book, contracts won)
   - Recent growth milestone or major contract/project achievement
   - National impact or strategic importance
   - CSR initiatives or governance highlights (if data available)
+  - A closing reasoning/validation bullet that explicitly ties the candidate's record back to the
+    award's stated evaluation criteria — name which criteria they satisfy and why, so the bullet reads
+    as a judgement ("this qualifies them for X because Y"), not a restatement of an earlier bullet
 
 HARD REQUIREMENT for every about_nominee and selection_rationale bullet: it must contain at least one
 specific number, date, or named achievement drawn from the raw data — never a bare qualitative claim.

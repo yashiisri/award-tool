@@ -4,128 +4,78 @@ function getInitials(name = '') {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 
-const badgeSt = { display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', fontSize: 9.5, fontWeight: 700, borderRadius: 20 }
-
-// Same gold-swoosh / maroon-banner visual language as the full dossier's hero
-// header (NomineeProfileCard.jsx) — used here as the collapsed grid tile so
-// the two feel like one continuous view: photo card -> tap -> full dossier.
-// The whole card is the tap target — no separate "View Profile" button.
+// Same circular-photo profile-card treatment as the Admin section's nominee
+// grid (ViewNominees.jsx) — the whole card is the tap target, opening the
+// full dossier (NomineeProfileCard.jsx) on click.
 export default function NomineeGridCard({ nominee, awardName, onClick, actions }) {
   const isFlagged   = nominee.red_flagged
   const isPending   = nominee.enrichment_status === 'pending'
   const isValidated = (nominee.validated_by?.length || 0) > 0
-  const gid = nominee.id || nominee.name
+  const hasBadges   = isValidated || nominee.suggested_by || isFlagged || isPending
 
   return (
     <div
       onClick={onClick}
-      style={{ background: '#fff', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
-      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)'}
-      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+      className={`group bg-white border rounded-2xl overflow-hidden transition-all shadow-sm cursor-pointer ${
+        isFlagged ? 'border-red-200' : isValidated ? 'border-emerald-200' : 'border-gray-100 hover:border-[#00338D]/25 hover:shadow-lg'
+      }`}
     >
-      <div
-        style={{
-          position: 'relative', height: 270, overflow: 'hidden',
-          background: 'linear-gradient(180deg, #6B6F5C 0%, #4A4D3F 55%, #34362C 100%)',
-        }}
-      >
-        {nominee.photo_url ? (
-          <img
-            src={nominee.photo_url}
-            alt={nominee.name}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 18%' }}
-            onError={e => { e.target.style.display = 'none' }}
-          />
-        ) : (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 56, fontWeight: 800, color: 'rgba(255,255,255,0.22)', fontFamily: "'Playfair Display', serif" }}>
-              {getInitials(nominee.name)}
+      {/* Header band + circular photo */}
+      <div className="pt-4 pb-4 px-5 bg-gradient-to-b from-[#EEF2FA] to-white text-center">
+        {/* Status badges — normal flow, above the circle, never overlapping it */}
+        {hasBadges && (
+          <div className="flex items-center justify-between gap-1 mb-3">
+            <div className="flex gap-1 flex-wrap">
+              {isValidated && (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white text-xs font-semibold rounded-full shadow-sm">
+                  <CheckCircle className="w-3 h-3" /> Approved
+                </span>
+              )}
+              {nominee.suggested_by && (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500 text-white text-xs font-semibold rounded-full shadow-sm">
+                  <UserPlus className="w-3 h-3" /> Nominated
+                </span>
+              )}
+            </div>
+            <span>
+              {isFlagged && (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500 text-white text-xs font-semibold rounded-full shadow-sm">
+                  <AlertTriangle className="w-3 h-3" /> Flagged
+                </span>
+              )}
+              {isPending && !isFlagged && (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-[#00338D] text-white text-xs font-semibold rounded-full shadow-sm">
+                  <Sparkles className="w-3 h-3 animate-pulse" /> Building profile
+                </span>
+              )}
             </span>
           </div>
         )}
 
-        {awardName && (
-          <div style={{ position: 'absolute', top: 14, left: 16, right: 60, zIndex: 3 }}>
-            <p style={{
-              fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: 13,
-              color: '#E9C766', margin: 0, lineHeight: 1.3, textShadow: '0 2px 6px rgba(0,0,0,0.55)',
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-            }}>
-              {awardName}
-            </p>
-          </div>
-        )}
-
-        {(isValidated || nominee.suggested_by) && (
-          <div style={{ position: 'absolute', bottom: 100, left: 16, zIndex: 3, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {isValidated && (
-              <span style={{ ...badgeSt, background: 'rgba(34,197,94,0.92)', color: '#fff' }}>
-                <CheckCircle size={10} /> Approved
-              </span>
-            )}
-            {nominee.suggested_by && (
-              <span style={{ ...badgeSt, background: 'rgba(212,160,23,0.92)', color: '#fff' }}>
-                <UserPlus size={10} /> Nominated
-              </span>
-            )}
-          </div>
-        )}
-
-        {isPending && (
-          <span style={{
-            position: 'absolute', top: 14, right: 14, zIndex: 4, display: 'flex', alignItems: 'center', gap: 4,
-            padding: '3px 9px', background: 'rgba(0,51,141,0.9)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 20,
-          }}>
-            <Sparkles size={10} /> Enriching
-          </span>
-        )}
-        {isFlagged && !isPending && (
-          <span style={{
-            position: 'absolute', top: 14, right: 14, zIndex: 4, display: 'flex', alignItems: 'center', gap: 4,
-            padding: '3px 9px', background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 20,
-          }}>
-            <AlertTriangle size={10} /> Flagged
-          </span>
-        )}
-
-        <svg viewBox="0 0 400 270" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 2 }}>
-          <defs>
-            <linearGradient id={`ngc-maroon-${gid}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#5C1530" />
-              <stop offset="100%" stopColor="#280A16" />
-            </linearGradient>
-            <linearGradient id={`ngc-gold-${gid}`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#B98F32" />
-              <stop offset="50%" stopColor="#F3DA8C" />
-              <stop offset="100%" stopColor="#B98F32" />
-            </linearGradient>
-          </defs>
-          <path d="M0,200 C90,155 145,215 200,196 C260,176 315,206 400,182 L400,270 L0,270 Z" fill={`url(#ngc-maroon-${gid})`} opacity="0.96" />
-          <path d="M0,200 C90,155 145,215 200,196 C260,176 315,206 400,182" fill="none" stroke={`url(#ngc-gold-${gid})`} strokeWidth="2.5" />
-        </svg>
-
-        <div style={{ position: 'absolute', left: 16, right: 16, bottom: 16, zIndex: 3 }}>
-          <h3 style={{
-            color: 'white', fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em', margin: 0,
-            textShadow: '0 2px 6px rgba(0,0,0,0.4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>
-            {nominee.name}
-          </h3>
-          {nominee.designation && (
-            <p style={{ color: 'rgba(255,255,255,0.94)', fontSize: 13, fontWeight: 600, margin: '4px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {nominee.designation}
-            </p>
+        <div
+          className={`w-20 h-20 rounded-full mx-auto overflow-hidden relative ring-4 ring-white ${nominee.photo_url ? 'shadow-md' : ''}`}
+          style={{ background: nominee.photo_url ? 'linear-gradient(135deg, #00338D, #0057D9)' : '#E2E5EA' }}
+        >
+          {nominee.photo_url && (
+            <img src={nominee.photo_url} alt={nominee.name} className="w-full h-full object-cover"
+              onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
           )}
-          {nominee.organisation && (
-            <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5, margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {nominee.organisation}
-            </p>
-          )}
+          <div className="w-full h-full items-center justify-center absolute inset-0" style={{ display: nominee.photo_url ? 'none' : 'flex' }}>
+            <span className="text-[#6B7280] text-lg font-semibold">{getInitials(nominee.name)}</span>
+          </div>
         </div>
+
+        {awardName && (
+          <p className="mt-3 text-[#00338D] text-xs font-bold uppercase tracking-wide truncate">{awardName}</p>
+        )}
+        <h3 className="mt-1 font-bold text-[#0A1628] text-[15px] leading-snug group-hover:text-[#00338D] transition-colors truncate">
+          {nominee.name}
+        </h3>
+        <p className="text-gray-500 text-xs mt-0.5 truncate">{nominee.designation}{nominee.organisation ? ` · ${nominee.organisation}` : ''}</p>
       </div>
 
       {actions && (
-        <div style={{ padding: '12px 14px', display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
+        <div className="px-4 pb-4 pt-3 border-t border-gray-50 flex gap-1.5" onClick={e => e.stopPropagation()}>
           {actions}
         </div>
       )}

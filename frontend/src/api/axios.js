@@ -1,7 +1,10 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api'
+  // 127.0.0.1, not localhost — this machine resolves "localhost" to the IPv6
+  // loopback (::1) first, which the backend doesn't listen on, adding a
+  // dual-stack fallback delay (or an outright failure) to every request.
+  baseURL: 'http://127.0.0.1:8000/api'
 })
 
 api.interceptors.request.use((config) => {

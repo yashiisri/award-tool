@@ -1,7 +1,6 @@
-import { Link, useLocation } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { LogOut, ArrowLeft } from 'lucide-react'
 import LogoPair from './LogoPair'
-import kpmgLogo from '../../kpmg-logo.svg'
 
 const ROLE_META = {
   admin:     { label: 'Administrator', org: 'KPMG' },
@@ -11,8 +10,9 @@ const ROLE_META = {
 const PILL_BG   = 'rgba(255,255,255,0.12)'
 const PILL_TEXT = 'rgba(255,255,255,0.85)'
 
-export default function Sidebar({ navItems, role, username, onLogout }) {
+export default function Sidebar({ navItems, role, username, onLogout, showBackButton }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const meta = ROLE_META[role] || ROLE_META.jury
   const initial = (username || meta.label)?.[0]?.toUpperCase()
 
@@ -26,6 +26,23 @@ export default function Sidebar({ navItems, role, username, onLogout }) {
       fontFamily: "'Inter', system-ui, sans-serif",
       borderRight: '1px solid rgba(255,255,255,0.06)',
     }}>
+
+      {showBackButton && (
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer',
+            color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 500,
+            borderBottom: '1px solid rgba(255,255,255,0.08)', letterSpacing: '0.02em',
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
+        >
+          <ArrowLeft size={14} /> Back to Home
+        </button>
+      )}
 
       {/* Logo area */}
       <div style={{
@@ -105,12 +122,6 @@ export default function Sidebar({ navItems, role, username, onLogout }) {
           )
         })}
       </nav>
-
-      {/* Knowledge partner strip */}
-      <div style={{ padding: '16px 20px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <img src={kpmgLogo} alt="KPMG" style={{ height: 18, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.55 }} />
-        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.22)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Official Knowledge Partner</span>
-      </div>
 
       {/* Logout */}
       <div style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>

@@ -1,23 +1,21 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { Award, Users, MessageSquare, BarChart3, Vote, Medal, FileText } from 'lucide-react'
+import { Award, Users, MessageSquare, BarChart3, Vote, Medal } from 'lucide-react'
 import Sidebar from '../components/layout/Sidebar'
 import HJAwards from '../components/headjury/HJAwards'
 import HJNominees from '../components/headjury/HJNominees'
 import HJJuryComments from '../components/headjury/HJJuryComments'
-import HJVoteStatus from '../components/headjury/HJVoteStatus'
+import HJVotingProgress from '../components/headjury/HJVotingProgress'
 import HJVoting from '../components/headjury/HJVoting'
 import HJResults from '../components/headjury/HJResults'
-import HJAuditTrail from '../components/headjury/HJAuditTrail'
 
 const BASE_NAV = [
-  { path: '/head_jury/awards',       icon: Award,         label: 'Awards',        awardParam: false },
-  { path: '/head_jury/nominees',     icon: Users,         label: 'Nominees',      awardParam: true  },
-  { path: '/head_jury/comments',     icon: MessageSquare, label: 'Jury Comments', awardParam: false },
-  { path: '/head_jury/vote-status',  icon: BarChart3,     label: 'Vote Status',   awardParam: true  },
-  { path: '/head_jury/voting',       icon: Vote,          label: 'Your Vote',     awardParam: true  },
-  { path: '/head_jury/results',      icon: Medal,         label: 'Results',       awardParam: true  },
-  { path: '/head_jury/jury-actions', icon: FileText,      label: 'Jury Actions',  awardParam: false },
+  { path: '/head_jury/awards',           icon: Award,         label: 'Awards',           awardParam: false },
+  { path: '/head_jury/nominees',         icon: Users,         label: 'Nominees',         awardParam: true  },
+  { path: '/head_jury/comments',         icon: MessageSquare, label: 'Jury Comments',    awardParam: false },
+  { path: '/head_jury/voting-progress',  icon: BarChart3,     label: 'Voting Progress',  awardParam: false },
+  { path: '/head_jury/voting',           icon: Vote,          label: 'Your Vote',        awardParam: true  },
+  { path: '/head_jury/results',          icon: Medal,         label: 'Results',          awardParam: true  },
 ]
 
 function useSelectedAward() {
@@ -61,15 +59,14 @@ function HeadJuryDashboardInner({ onLogout, username }) {
       <Sidebar navItems={navItems} role="head_jury" username={username} onLogout={onLogout} />
       <main className="flex-1 overflow-auto">
         <Routes>
-          <Route path="/awards"      element={<HJAwards />} />
-          <Route path="/nominees"    element={<HJNominees />} />
-          <Route path="/comments"    element={<HJJuryComments />} />
-          <Route path="/vote-status" element={<HJVoteStatus />} />
-          <Route path="/voting"      element={<HJVoting />} />
-          <Route path="/results"      element={<HJResults />} />
-          <Route path="/jury-actions" element={<HJAuditTrail />} />
-          <Route path="/"             element={<Navigate to="/head_jury/awards" />} />
-          <Route path="*"             element={<Navigate to="/head_jury/awards" />} />
+          <Route path="/awards"           element={<HJAwards />} />
+          <Route path="/nominees"         element={<HJNominees />} />
+          <Route path="/comments"         element={<HJJuryComments />} />
+          <Route path="/voting-progress"  element={<HJVotingProgress />} />
+          <Route path="/voting"           element={<HJVoting />} />
+          <Route path="/results"          element={<HJResults />} />
+          <Route path="/"                 element={<Navigate to="/head_jury/awards" />} />
+          <Route path="*"                 element={<Navigate to="/head_jury/awards" />} />
         </Routes>
       </main>
     </>

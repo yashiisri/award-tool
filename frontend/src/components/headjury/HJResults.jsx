@@ -16,7 +16,7 @@ export default function HJResults() {
   const fetchResults = async () => {
     setLoading(true)
     try {
-      const { data: awards } = await api.get('/jury/awards')
+      const { data: awards } = await api.get('/head-jury/awards')
       const targets = awardFromUrl ? awards.filter(a => a.id === awardFromUrl) : awards
 
       const settled = await Promise.all(

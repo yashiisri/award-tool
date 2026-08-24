@@ -8,12 +8,11 @@ const CRITERIA = [
   { id: 'governance',      label: 'Governance & Societal Responsibilities' },
   { id: 'org_performance', label: 'Organisational Performance' },
   { id: 'general',         label: 'General Eligibility' },
+  { id: 'innovation',      label: 'Innovation & Strategic Partnership' },
+  { id: 'leadership',      label: 'Leadership' },
+  { id: 'impact',          label: 'Impact on Workforce & Environment' },
 ]
-const CRITERIA_DETAILS = {
-  governance:      ['Contribution to society and nation at large', 'Personal values, ethics and corporate integrity', 'Contribution to positive evolution of government policy', 'Contribution towards globalisation of Indian economy'],
-  org_performance: ['Display of corporate courage and leadership', 'Contribution towards evolving appropriate management culture', 'Contribution towards development of management profession', 'Vision and support for innovation and new ideas'],
-  general:         ['Organisation must be operating in India', 'Business must have contributed substantially to Indian economy', 'Nominations of individuals from their own organisations will be considered'],
-}
+const DEFAULT_CRITERIA = CRITERIA.map(c => c.id)
 
 function AwardCard({ award, onDelete, onClick }) {
   const [hov, setHov] = useState(false)
@@ -59,7 +58,7 @@ function AwardCard({ award, onDelete, onClick }) {
             <Users size={12} /> {award.num_nominees} nominees
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: '#EEF3FF', color: 'var(--kpmg-blue)', fontSize: 12, fontWeight: 500 }}>
-            <CheckSquare size={12} /> {award.criteria?.length || 3} criteria
+            <CheckSquare size={12} /> {award.criteria?.length || 6} criteria
           </span>
         </div>
       </div>
@@ -76,8 +75,7 @@ export default function Awards() {
   const [awards, setAwards]       = useState([])
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading]     = useState(false)
-  const [expanded, setExpanded]   = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', num_nominees: 5, criteria: ['governance', 'org_performance', 'general'] })
+  const [form, setForm] = useState({ name: '', description: '', num_nominees: 5, criteria: DEFAULT_CRITERIA })
   const navigate = useNavigate()
 
   useEffect(() => { fetchAwards() }, [])
@@ -90,7 +88,7 @@ export default function Awards() {
     try {
       await api.post('/admin/awards', form)
       setShowModal(false)
-      setForm({ name: '', description: '', num_nominees: 5, criteria: ['governance', 'org_performance', 'general'] })
+      setForm({ name: '', description: '', num_nominees: 5, criteria: DEFAULT_CRITERIA })
       fetchAwards()
     } catch {} finally { setLoading(false) }
   }
@@ -206,23 +204,7 @@ export default function Awards() {
                             {checked && <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="white" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                           </div>
                           <span style={{ flex: 1, fontSize: 13, fontWeight: checked ? 600 : 400, color: 'var(--text-primary)' }}>{label}</span>
-                          <button type="button" onClick={e => { e.stopPropagation(); setExpanded(expanded === id ? null : id) }}
-                            style={{ fontSize: 10, color: 'var(--kpmg-blue)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 6px' }}>
-                            {expanded === id ? 'Hide' : 'Details'}
-                          </button>
                         </div>
-                        {expanded === id && (
-                          <div style={{ padding: '8px 12px 12px', borderTop: '1px solid var(--border-light)' }}>
-                            <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                              {CRITERIA_DETAILS[id].map((point, i) => (
-                                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
-                                  <div style={{ width: 3, height: 3, background: 'var(--kpmg-blue)', marginTop: 6, flexShrink: 0, opacity: 0.5 }} />
-                                  {point}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
                       </div>
                     )
                   })}

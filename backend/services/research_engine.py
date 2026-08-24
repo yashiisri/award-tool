@@ -235,6 +235,40 @@ async def _tavily_one(query: str, client: httpx.AsyncClient) -> list[dict]:
     return []
 
 
+async def fetch_photo_via_tavily(name: str, context: str = "") -> str:
+    """Best-effort headshot lookup via Tavily's image search — used as a
+    fallback when Wikipedia has no thumbnail for a nominee (most common for a
+    manually-suggested/added nominee whose Wikipedia page is thin or absent).
+    Returns the first image URL Tavily finds, or "" if unavailable/unconfigured."""
+    if not settings.TAVILY_API_KEY:
+        return ""
+    query = f"{name} {context} photo headshot".strip()
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+            r = await client.post(
+                TAVILY_URL,
+                json={
+                    "api_key": settings.TAVILY_API_KEY,
+                    "query": query,
+                    "search_depth": "basic",
+                    "max_results": 3,
+                    "include_images": True,
+                    "include_answer": False,
+                },
+            )
+        if r.status_code == 200:
+            images = r.json().get("images", [])
+            for img in images:
+                url = img if isinstance(img, str) else (img.get("url") or "")
+                if url:
+                    return url
+        else:
+            logger.debug("Tavily image search HTTP %d for '%s'", r.status_code, query)
+    except Exception as exc:
+        logger.debug("Tavily image search failed for '%s': %s", name, exc)
+    return ""
+
+
 async def _ddg_one(query: str, client: httpx.AsyncClient) -> list[dict]:
     """Fallback web search when Tavily is unavailable or returns nothing for a query."""
     try:

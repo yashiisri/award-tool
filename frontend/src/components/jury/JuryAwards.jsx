@@ -16,7 +16,6 @@ const STATUS_META = {
 function AwardCard({ award, status, onClick }) {
   const [hov, setHov] = useState(false)
   const meta = STATUS_META[status]
-  const firstCriterion = award.aima_criteria?.[0]?.title
 
   return (
     <div
@@ -50,12 +49,6 @@ function AwardCard({ award, status, onClick }) {
         <p style={{ margin: '0 0 16px', fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.65, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {award.description}
         </p>
-
-        {firstCriterion && (
-          <span style={{ display: 'inline-block', marginBottom: 14, padding: '4px 10px', background: 'var(--gold-light)', color: '#9A7B1F', fontSize: 11, fontWeight: 600 }}>
-            {firstCriterion}
-          </span>
-        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12.5, marginBottom: 18 }}>
           <Users size={13} />{award.num_nominees} nominees

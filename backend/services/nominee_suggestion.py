@@ -20,6 +20,7 @@ from bson import ObjectId
 from database import get_database
 from services.research_engine import (
     RawEnrichment, TIMEOUT, fetch_wikipedia, fetch_controversy_chunks, web_search,
+    fetch_photo_via_tavily,
 )
 from services.dossier_builder import build_dossiers
 
@@ -63,6 +64,10 @@ async def enrich_suggested_nominee(
             brief.photo_url = wiki.get("photo", "")
             if brief.wiki_url:
                 brief.source_urls.append(brief.wiki_url)
+        if not brief.photo_url:
+            # No Wikipedia thumbnail — try Tavily image search (via Google/Tavily,
+            # whichever source is configured) so the nominee card still gets a photo.
+            brief.photo_url = await fetch_photo_via_tavily(name, f"{designation} {organisation}")
         brief.ddg_text = " | ".join(f"{c['title']}: {c['content'][:250]}" for c in chunks[:8])
         brief.source_urls.extend(c["url"] for c in chunks[:8] if c.get("url"))
         if controversy_chunks:

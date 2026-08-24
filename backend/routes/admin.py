@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
@@ -8,6 +9,13 @@ from datetime import datetime
 from config import settings
 import json
 import logging
+# Imported at module load (server startup), not inside the request handler —
+# these pull in a deep dependency chain (bs4, groq, httpx research pipeline)
+# that's slow to import cold; doing it lazily meant the FIRST request that
+# hit one of these endpoints after every server restart ate that whole
+# import cost as extra request latency.
+from services.nominee_service import extract_and_store_metrics
+from services.nominee_suggestion import enrich_suggested_nominee
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +35,18 @@ AIMA_CRITERIA = [
      "points": ["Organisation must be operating in India",
                 "Business must have contributed substantially to Indian economy",
                 "Nominations of individuals from their own organisations will be considered"]},
+    {"id": "innovation", "title": "Innovation & Strategic Partnership",
+     "points": ["Innovativeness in approach and tangible contribution to sustained growth",
+                "Developed, managed and sustained strategic partnerships across sectors",
+                "Adoption of new technology or business models to stay ahead of the curve"]},
+    {"id": "leadership", "title": "Leadership",
+     "points": ["A distinguished and acknowledged leader and achiever within the organisation",
+                "Upheld high ethical values and behavioural standards",
+                "Inspired and mentored the next generation of leadership"]},
+    {"id": "impact", "title": "Impact on Workforce & Environment",
+     "points": ["Concern for employee welfare, safety and professional growth",
+                "Commitment to environmental preservation and sustainability",
+                "Exceptional performance and resilience under adverse conditions"]},
 ]
 
 AI_SOURCES = [
@@ -95,6 +115,12 @@ class ValidateNomineeRequest(BaseModel):
 class UnflagNomineeRequest(BaseModel):
     nominee_id: str
 
+class SuggestNomineeRequest(BaseModel):
+    award_id: str
+    name: str
+    designation: str
+    organisation: Optional[str] = ""
+
 # ── Awards ─────────────────────────────────────────────────────────────────────
 
 @router.post("/awards")
@@ -110,8 +136,6 @@ async def create_award(award: AwardCreate, user=Depends(get_current_user)):
 
     # Async metric extraction — fire and forget so award creation is instant
     if award.description.strip():
-        import asyncio
-        from services.nominee_service import extract_and_store_metrics
         asyncio.create_task(
             extract_and_store_metrics(db, award_id, award.name, award.description)
         )
@@ -169,6 +193,50 @@ async def get_nominees(award_id: str, user=Depends(get_current_user)):
     db = get_database()
     nominees = await db.nominees.find({"award_id": award_id}).to_list(100)
     return [serialize(n) for n in nominees]
+
+@router.post("/nominees/suggest")
+async def suggest_nominee(req: SuggestNomineeRequest, user=Depends(get_current_user)):
+    """Admin equivalent of the jury 'Suggest Nominee' flow — admin only supplies
+    the name, designation and organisation; the profile (photo, bio, rationale,
+    sources) is built automatically in the background."""
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403)
+    db = get_database()
+
+    award = await db.awards.find_one({"_id": ObjectId(req.award_id)})
+    if not award:
+        raise HTTPException(status_code=404, detail="Award not found")
+
+    doc = {
+        "award_id": req.award_id,
+        "name": req.name,
+        "designation": req.designation,
+        "organisation": req.organisation or "",
+        "photo_url": "",
+        "rationale": "",
+        "rationale_data": {},
+        "validated_by": [],
+        "red_flagged": False,
+        "ai_generated": False,
+        "added_by": user["sub"],
+        "enrichment_status": "pending",
+        "created_at": datetime.utcnow(),
+    }
+    result = await db.nominees.insert_one(doc)
+    nominee_id = str(result.inserted_id)
+
+    asyncio.create_task(enrich_suggested_nominee(
+        nominee_id=nominee_id,
+        name=req.name,
+        designation=req.designation,
+        organisation=req.organisation or "",
+        award_name=award.get("name", ""),
+        award_description=award.get("description", ""),
+        evaluation_criteria=award.get("criteria", []),
+    ))
+
+    await log_action(db, user, "add_nominee", {"nominee_name": req.name, "award_id": req.award_id})
+    return {"id": nominee_id, "message": "Nominee added — profile is being built"}
 
 @router.put("/nominees/{nominee_id}")
 async def update_nominee(nominee_id: str, update: NomineeUpdate, user=Depends(get_current_user)):
@@ -286,7 +354,7 @@ async def get_rankings_by_jury(award_id: str, user=Depends(get_current_user)):
             "photo_url": nom.get("photo_url", ""),
         })
 
-    order = {"first": 0, "second": 1}
+    order = {"first": 0, "second": 1, "third": 2, "fourth": 3, "fifth": 4}
     for jid in by_jury:
         by_jury[jid]["choices"].sort(key=lambda c: order.get(c["choice"], 2))
 
@@ -316,7 +384,6 @@ async def get_award_metrics(award_id: str, user=Depends(get_current_user)):
 
     # If metrics not yet extracted, do it now
     if not metrics and award.get("description", "").strip():
-        from services.nominee_service import extract_and_store_metrics
         award_title = award.get("name") or award.get("title") or "Award"
         metrics = await extract_and_store_metrics(
             db, award_id, award_title, award.get("description", "")
@@ -390,6 +457,18 @@ async def get_jury_comments(user=Depends(get_current_user)):
     db = get_database()
     comments = await db.comments.find().sort("created_at", -1).to_list(200)
     return [serialize(c) for c in comments]
+
+@router.delete("/jury-comments/{comment_id}")
+async def delete_jury_comment(comment_id: str, user=Depends(get_current_user)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403)
+    db = get_database()
+    comment = await db.comments.find_one({"_id": ObjectId(comment_id)})
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    await db.comments.delete_one({"_id": ObjectId(comment_id)})
+    await log_action(db, user, "delete_comment", {"comment_id": comment_id, "jury_id": comment.get("jury_id", "")})
+    return {"message": "Comment deleted"}
 
 @router.get("/jury-vote-status")
 async def get_jury_vote_status(user=Depends(get_current_user)):

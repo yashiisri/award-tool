@@ -3,27 +3,38 @@ import { X, Printer, CheckCircle, AlertTriangle } from 'lucide-react'
 import kpmgLogo from '../../kpmg-logo.png'
 import { filterDisplaySources } from '../../utils/sourceDisplay'
 
+// Reads the actual structured AI research (nominee.rationale_data — the same
+// object NomineeProfileCard.jsx renders) instead of the flat nominee.rationale
+// text, so the printed dossier carries the real biography, achievements,
+// financials and reasoning the research pipeline produced, not a crude
+// regex re-guess at them from a single paragraph.
 function parseRationale(nominee) {
-  const raw = nominee.rationale || ''
-  if (nominee.biography || nominee.achievements || nominee.financial_impact) {
+  const rd = nominee.rationale_data || {}
+  const hasStructured = (rd.about_nominee?.length || rd.selection_rationale?.length || rd.key_achievements?.length || rd.bio)
+
+  if (hasStructured) {
     return {
-      biography: nominee.biography || '',
-      achievements: nominee.achievements || [],
-      financial_impact: nominee.financial_impact || '',
-      awards_recognition: nominee.awards_recognition || [],
-      selection_rationale: nominee.selection_rationale || raw,
+      bio: rd.bio || '',
+      about: rd.about_nominee || [],
+      selectionRationale: Array.isArray(rd.selection_rationale)
+        ? rd.selection_rationale
+        : (rd.selection_rationale ? [rd.selection_rationale] : []),
+      achievements: rd.key_achievements || [],
+      financials: rd.financials || {},
+      awardsRecognition: rd.awards_recognitions || [],
     }
   }
-  const sentences = raw.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 10)
-  const financialRe = /INR|USD|crore|billion|revenue|market cap|profit|turnover/i
-  const achievementRe = /launched|led|founded|built|pioneered|transformed|expanded|achieved|won|ranked|awarded/i
-  const awardRe = /award|honour|honor|recognition|ranked|conferred|prize|medal/i
+
+  // Legacy fallback — a manually-entered nominee with only a flat rationale
+  // string and none of the structured research fields.
+  const raw = nominee.rationale || ''
   return {
-    biography: sentences.filter(s => !financialRe.test(s) && !achievementRe.test(s)).slice(0, 2).join(' '),
-    achievements: sentences.filter(s => achievementRe.test(s) && !financialRe.test(s)).slice(0, 4),
-    financial_impact: sentences.filter(s => financialRe.test(s))[0] || '',
-    awards_recognition: sentences.filter(s => awardRe.test(s)).slice(0, 3),
-    selection_rationale: raw,
+    bio: '',
+    about: [],
+    selectionRationale: raw ? [raw] : [],
+    achievements: [],
+    financials: {},
+    awardsRecognition: [],
   }
 }
 
@@ -206,11 +217,45 @@ export default function DossierModal({ award, nominees, onClose }) {
 
                   <div className="dossier-profile-body">
 
+                    {/* Biography */}
+                    {parsed.bio && (
+                      <div className="dossier-field">
+                        <p className="dossier-field-label">Biography</p>
+                        <p className="dossier-field-text">{parsed.bio}</p>
+                      </div>
+                    )}
+
+                    {/* About the nominee */}
+                    {parsed.about.length > 0 && (
+                      <div className="dossier-field">
+                        <p className="dossier-field-label">About the Nominee</p>
+                        <ul className="dossier-list">
+                          {parsed.about.map((item, j) => (
+                            <li key={j} className="dossier-list-item">
+                              <span className="dossier-bullet" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     {/* Selection rationale */}
-                    {parsed.selection_rationale && (
+                    {parsed.selectionRationale.length > 0 && (
                       <div className="dossier-field">
                         <p className="dossier-field-label">Nomination Rationale</p>
-                        <p className="dossier-field-text">{parsed.selection_rationale}</p>
+                        {parsed.selectionRationale.length > 1 ? (
+                          <ul className="dossier-list">
+                            {parsed.selectionRationale.map((item, j) => (
+                              <li key={j} className="dossier-list-item">
+                                <span className="dossier-bullet" />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="dossier-field-text">{parsed.selectionRationale[0]}</p>
+                        )}
                       </div>
                     )}
 
@@ -230,20 +275,27 @@ export default function DossierModal({ award, nominees, onClose }) {
                     )}
 
                     <div className="dossier-two-col">
-                      {/* Financial impact */}
-                      {parsed.financial_impact && (
+                      {/* Financial overview */}
+                      {Object.values(parsed.financials).some(v => v) && (
                         <div className="dossier-field dossier-highlight-green">
-                          <p className="dossier-field-label" style={{ color: '#15803D' }}>Financial Impact</p>
-                          <p className="dossier-field-text" style={{ color: '#15803D', fontWeight: 600 }}>{parsed.financial_impact}</p>
+                          <p className="dossier-field-label" style={{ color: '#15803D' }}>Financial Overview</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {Object.entries(parsed.financials).filter(([, v]) => v).map(([k, v]) => (
+                              <div key={k}>
+                                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#4D9B6D' }}>{k.replace(/_/g, ' ')}</p>
+                                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#15803D' }}>{v}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 
                       {/* Awards & recognition */}
-                      {parsed.awards_recognition.length > 0 && (
+                      {parsed.awardsRecognition.length > 0 && (
                         <div className="dossier-field">
                           <p className="dossier-field-label">Awards &amp; Recognition</p>
                           <ul className="dossier-list">
-                            {parsed.awards_recognition.map((item, j) => (
+                            {parsed.awardsRecognition.map((item, j) => (
                               <li key={j} className="dossier-list-item">
                                 <span className="dossier-bullet dossier-bullet-gold" />
                                 <span>{item}</span>

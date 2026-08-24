@@ -1,10 +1,18 @@
 """
 seed_aima_awards.py
 ─────────────────────
-Seeds the 13 canonical AIMA award categories (from the official brochure +
-the 2025 category list). Idempotent — skips any award whose name already
-exists, so it's safe to re-run and never touches the awards already created
-in production (different names, e.g. "Business Leader of year 2026").
+Seeds the 15 canonical AIMA Managing India Awards categories with their
+official descriptions and the shared 6-part evaluation criteria (the original
+3 — Governance & Societal Responsibilities, Organisational Performance,
+General Eligibility — plus Innovation & Strategic Partnership, Leadership,
+and Impact on Workforce & Environment).
+
+Upserts by name: an award that already exists gets its description,
+num_nominees, criteria and aima_criteria refreshed in place (created_at,
+created_by, results_published, ai_metrics and head_jury_approved are left
+untouched) — so re-running this script after an edit here is exactly how a
+category's text/criteria gets applied retroactively to whatever's already
+in the database. An award with no match by name is inserted fresh.
 
 Run:  python scripts/seed_aima_awards.py
 """
@@ -16,204 +24,129 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database import connect_db, close_db, get_database
 
-def criteria(*blocks):
-    """blocks: [(id, title, [points]), ...] -> aima_criteria structure."""
-    return [{"id": i, "title": t, "points": p} for i, t, p in blocks]
+# ── Shared 6-part evaluation criteria — same set used for every award created
+# through the admin/head-jury "New Award" form (routes/admin.py AIMA_CRITERIA).
+AIMA_CRITERIA = [
+    {"id": "governance", "title": "Governance & Societal Responsibilities",
+     "points": ["Contribution to society and nation at large", "Personal values, ethics and corporate integrity",
+                "Contribution to positive evolution of government policy",
+                "Contribution towards globalisation of Indian economy and industry"]},
+    {"id": "org_performance", "title": "Organisational Performance",
+     "points": ["Display of corporate courage and leadership",
+                "Contribution towards evolving appropriate management culture",
+                "Contribution towards development of management profession",
+                "Vision and support for innovation and new ideas"]},
+    {"id": "general", "title": "General Eligibility",
+     "points": ["Organisation must be operating in India",
+                "Business must have contributed substantially to Indian economy",
+                "Nominations of individuals from their own organisations will be considered"]},
+    {"id": "innovation", "title": "Innovation & Strategic Partnership",
+     "points": ["Innovativeness in approach and tangible contribution to sustained growth",
+                "Developed, managed and sustained strategic partnerships across sectors",
+                "Adoption of new technology or business models to stay ahead of the curve"]},
+    {"id": "leadership", "title": "Leadership",
+     "points": ["A distinguished and acknowledged leader and achiever within the organisation",
+                "Upheld high ethical values and behavioural standards",
+                "Inspired and mentored the next generation of leadership"]},
+    {"id": "impact", "title": "Impact on Workforce & Environment",
+     "points": ["Concern for employee welfare, safety and professional growth",
+                "Commitment to environmental preservation and sustainability",
+                "Exceptional performance and resilience under adverse conditions"]},
+]
+CRITERIA_IDS = [c["id"] for c in AIMA_CRITERIA]
 
 AWARDS = [
     {
-        "name": "AIMA-JRD TATA Corporate Leadership Award",
-        "description": "Recognising distinguished business leaders who have demonstrated exemplary governance, societal contribution, and transformational organisational performance.",
+        "name": "Entrepreneur of the Year",
+        "description": "This accolade will be awarded to the individual who has created an innovative enterprise which shows tremendous potential of creating ripples across the global industry. The individual would have created a brand which has the strength to give older and established brands a run for their money. The one who is the epitome of the never-say-die spirit of entrepreneurship.",
         "num_nominees": 8,
         "entity_type": "person",
-        "criteria_ids": ["governance", "org_performance", "general"],
-        "aima_criteria": criteria(
-            ("governance", "Governance & Societal Responsibilities", [
-                "Contribution to society and nation at large",
-                "Personal values, ethics and corporate integrity in business and expression of these values in public",
-                "Contribution to the positive evolution of government policy and ability to establish right equilibrium between business and its external environment",
-                "Contribution towards globalisation of Indian economy and industry",
-            ]),
-            ("org_performance", "Organisational Performance", [
-                "Display of corporate courage and leadership; the organisation must have displayed exemplary performance despite challenges",
-                "Contribution towards evolving appropriate management culture and ethos in the Indian context",
-                "Contribution towards development of the management profession",
-                "Vision and support for innovation and new ideas leading to turnaround of the organisation",
-            ]),
-            ("general", "General Eligibility", [
-                "The organisation must be an entity operating in India and have contributed substantially to Indian economic growth",
-                "Nominations of individuals from their own organisations will be considered",
-            ]),
-        ),
     },
     {
-        "name": "AIMA Life Time Achievement Award for Management",
-        "description": "Honouring eminent Professional Managers who have made outstanding lifetime contribution to professional management in India.",
+        "name": "Corporate Citizen of the Year",
+        "description": "This accolade will be awarded to the individual from the corporate arena who has made a significant contribution to the public good. The philanthropy may be in a variety of forms, such as strengthening health and education systems, alleviating poverty, helping the handicapped or providing underprivileged children a promising future, or fostering a greater understanding among people and/or communities.",
+        "num_nominees": 6,
+        "entity_type": "person",
+    },
+    {
+        "name": "Outstanding Contribution to Media",
+        "description": "This accolade will be awarded to the individual from the Indian media industry whose passion and commitment drive Indian news reporting to new heights. The individual should have built a strong work ethic for the burgeoning Indian media industry. The individual should be someone that young media persons look up to.",
         "num_nominees": 5,
         "entity_type": "person",
-        "criteria_ids": ["innovation", "leadership", "general"],
-        "aima_criteria": criteria(
-            ("innovation", "Innovation & Strategic Leadership", [
-                "Sustained strategic leadership and innovation that has altered strategic practice",
-                "Significant impact on strategy practices in industries beyond the home industry",
-            ]),
-            ("leadership", "Leadership Excellence", [
-                "A distinguished and acknowledged leader and achiever in their own organisation(s)",
-                "Awards won / recognition beyond their organisation",
-                "Left footprints in management profession, thought and culture",
-                "Upheld high ethical values and behavioural standards",
-            ]),
-            ("general", "General", [
-                "Likely to be past the normal age of superannuation",
-                "The organisation must be an entity operating in India",
-            ]),
-        ),
-    },
-    {
-        "name": "AIMA Public Service Excellence Award",
-        "description": "Recognising excellence in public services by public servants who have demonstrated exceptional governance and societal impact.",
-        "num_nominees": 6,
-        "entity_type": "person",
-        "criteria_ids": ["governance", "impact", "innovation"],
-        "aima_criteria": criteria(
-            ("governance", "Governance & Societal Responsibilities", [
-                "Awareness of and commitment to nationally important issues",
-                "Concern for the downtrodden segments of society",
-                "Commitment to social responsibility and environmental preservation",
-            ]),
-            ("impact", "Impact on Workforce Environment", [
-                "Managerial and leadership skills that could be imbibed by others",
-                "Exceptional caliber in performance under adverse environments",
-                "Individual philosophy, moral values, ethics and integrity",
-            ]),
-            ("innovation", "Innovation & Strategic Partnerships", [
-                "Innovativeness in approach and tangible contribution to social/civic undertakings",
-                "Developed, managed and sustained strategic partnerships across sectors",
-            ]),
-        ),
-    },
-    {
-        "name": "Business Leader of the Year",
-        "description": "Recognising the most outstanding business leader who has demonstrated exceptional leadership, organisational performance, and societal contribution in the current year.",
-        "num_nominees": 8,
-        "entity_type": "person",
-        "criteria_ids": ["governance", "org_performance", "general"],
-        "aima_criteria": criteria(
-            ("governance", "Governance & Societal Responsibilities", ["Contribution to society and nation at large", "Personal values, ethics and corporate integrity"]),
-            ("org_performance", "Organisational Performance", ["Corporate courage and leadership under challenging conditions", "Vision and support for innovation and new ideas"]),
-            ("general", "General Eligibility", ["Organisation must be operating in India", "Substantial contribution to the Indian economy"]),
-        ),
-    },
-    {
-        "name": "Transformational Business Leader of the Year",
-        "description": "Honouring a leader who has transformed their organisation through bold strategy, innovation, and sustained performance improvement.",
-        "num_nominees": 6,
-        "entity_type": "person",
-        "criteria_ids": ["transformation", "innovation", "impact"],
-        "aima_criteria": criteria(
-            ("transformation", "Transformational Leadership", ["Led a significant, measurable turnaround or reinvention of the organisation"]),
-            ("innovation", "Innovation", ["Introduced strategy or products that materially changed the organisation's trajectory"]),
-            ("impact", "Organisational Impact", ["Sustained performance improvement attributable directly to their leadership"]),
-        ),
-    },
-    {
-        "name": "Entrepreneur of the Year",
-        "description": "Recognising an outstanding entrepreneur who has built a significant business through innovation, resilience, and value creation.",
-        "num_nominees": 8,
-        "entity_type": "person",
-        "criteria_ids": ["innovation", "impact", "governance"],
-        "aima_criteria": criteria(
-            ("innovation", "Innovation & Risk-Taking", ["Built a differentiated business model or product from the ground up"]),
-            ("impact", "Business Impact", ["Demonstrated significant, verifiable business scale and value creation"]),
-            ("governance", "Governance", ["Sound governance and ethical conduct through the growth journey"]),
-        ),
-    },
-    {
-        "name": "Young Entrepreneur Award",
-        "description": "Celebrating an exceptional entrepreneur under 40 years of age who has demonstrated extraordinary vision and business building capability.",
-        "num_nominees": 10,
-        "entity_type": "person",
-        "filters": {"max_age": 40},
-        "criteria_ids": ["innovation", "scale", "age"],
-        "aima_criteria": criteria(
-            ("innovation", "Innovation", ["Original, differentiated approach to building the business"]),
-            ("scale", "Business Scale", ["Demonstrable growth, funding, or revenue milestones for the company stage"]),
-            ("age", "Age Eligibility", ["Nominee must be under 40 years of age"]),
-        ),
-    },
-    {
-        "name": "Director of the Year",
-        "description": "Recognising an independent or executive director who has demonstrated exceptional governance, strategic guidance, and board leadership.",
-        "num_nominees": 6,
-        "entity_type": "person",
-        "criteria_ids": ["governance", "strategy", "ethics"],
-        "aima_criteria": criteria(
-            ("governance", "Board Governance", ["Substantive contribution to board oversight and governance quality"]),
-            ("strategy", "Strategic Contribution", ["Demonstrated influence on the organisation's strategic direction"]),
-            ("ethics", "Ethics & Integrity", ["Consistent record of ethical conduct and independence of judgement"]),
-        ),
-    },
-    {
-        "name": "Outstanding Institution Builder",
-        "description": "Honouring a leader who has built an enduring institution — a company, hospital, university, or foundation — that outlasts individual tenure.",
-        "num_nominees": 6,
-        "entity_type": "person",
-        "criteria_ids": ["institution", "impact", "legacy"],
-        "aima_criteria": criteria(
-            ("institution", "Institution Building", ["Founded or shaped an institution with durable, self-sustaining structures"]),
-            ("impact", "Long-term Impact", ["Institution's impact extends well beyond the founder's individual tenure"]),
-            ("legacy", "Legacy & Values", ["Instilled values and culture that persist within the institution"]),
-        ),
-    },
-    {
-        "name": "Corporate Citizen Award",
-        "description": "Recognising a business leader whose organisation has made exceptional contribution to society, environment, and community through sustained CSR.",
-        "num_nominees": 6,
-        "entity_type": "person",
-        "criteria_ids": ["societal", "csr", "environment"],
-        "aima_criteria": criteria(
-            ("societal", "Societal Contribution", ["Measurable, sustained contribution to communities and society"]),
-            ("csr", "CSR Impact", ["Well-documented CSR programmes with real outcomes, not just spend"]),
-            ("environment", "Environmental Stewardship", ["Concrete environmental initiatives with tracked impact"]),
-        ),
-    },
-    {
-        "name": "Indian MNC of the Year",
-        "description": "Recognising an Indian multinational that has demonstrated outstanding global expansion, performance, and representation of Brand India.",
-        "num_nominees": 8,
-        "entity_type": "company",
-        "criteria_ids": ["global", "financial", "brand"],
-        "aima_criteria": criteria(
-            ("global", "Global Presence", ["Meaningful operating presence across multiple countries"]),
-            ("financial", "Financial Performance", ["Strong, verifiable financial performance at global scale"]),
-            ("brand", "Brand India Impact", ["Positive representation of Indian industry on the world stage"]),
-        ),
     },
     {
         "name": "Outstanding PSU of the Year",
-        "description": "Recognising a Public Sector Undertaking that has demonstrated exceptional operational excellence, financial performance, and national contribution.",
+        "description": "This award will be given in recognition of the outstanding performance of PSUs in their core fields. An institution or body responsible for shaping many careers by following the best human resource management practices. An institution that has not only made the economy grow manifold but has also proven that they are an essential part of the economy. Innovation and technology have been their offerings to the growth of the country. One that feels social responsibility is the very essence of its existence.",
         "num_nominees": 8,
         "entity_type": "company",
         "filters": {"require_psu": True},
-        "criteria_ids": ["operations", "financial", "national", "governance"],
-        "aima_criteria": criteria(
-            ("operations", "Operational Excellence", ["Demonstrated operational efficiency and modernisation"]),
-            ("financial", "Financial Performance", ["Strong revenue, profitability, or return-on-assets performance"]),
-            ("national", "National Impact", ["Substantial contribution to national infrastructure, energy, or public service"]),
-            ("governance", "Governance", ["Sound public-sector governance and regulatory compliance"]),
-        ),
+    },
+    {
+        "name": "Indian MNC of the Year",
+        "description": "Many Indian firms are slowly but surely establishing themselves abroad, embarking on the global path and leading to the emergence of Indian multinational companies. This award will be given to honour and recognize the Indian company which has not only grown domestically but also adopted global investment as an integral part of its business strategy, and has successfully carried out consolidation of its business on the global front to enhance its potential for growth and global competitiveness.",
+        "num_nominees": 8,
+        "entity_type": "company",
+    },
+    {
+        "name": "MNC in India of the Year",
+        "description": "This award would honour a multinational corporation which has made outstanding contributions towards the economic and social upliftment of India and has shown a powerful influence on local — and even the world — economy. One which has taken India to an all-new growth trajectory while demonstrating exceptional financial returns, strong growth, innovation strategies, and market leadership in its sector, and has delivered consistent results in dynamic market conditions.",
+        "num_nominees": 8,
+        "entity_type": "company",
+    },
+    {
+        "name": "Director of the Year",
+        "description": "We are looking for a personality who exemplifies the spirit of filmmaking — somebody who has taken a story and created a masterpiece out of it, the sort of masterpiece displayed for art connoisseurs to admire. She/he should have made legendary movie(s) worth watching over and over again.",
+        "num_nominees": 5,
+        "entity_type": "person",
+    },
+    {
+        "name": "Business Leader of the Decade",
+        "description": "This accolade will be awarded to a senior business leader who has led a business organization with excellence, innovation, and social responsibility over the past few decades. The award honours the leader who has demonstrated vision, strategy, and execution in creating value for stakeholders, customers, employees, and society at large — a leader who has inspired and influenced others in the industry and beyond.",
+        "num_nominees": 5,
+        "entity_type": "person",
+    },
+    {
+        "name": "Lifetime Contribution Award",
+        "description": "This accolade will be awarded to the individual who has revolutionized existing practices in their respective field(s). She/he would have put India on the world map in their own way, and would have had a lifetime of leadership excellence, being a worthy ambassador of India on the global stage.",
+        "num_nominees": 5,
+        "entity_type": "person",
+    },
+    {
+        "name": "Outstanding Institution Builder",
+        "description": "This accolade will be awarded to the individual who has displayed exceptional vision and leadership in building an organization, institution, or company. This may be a founder, majority (or largest single) owner, or driving force of a company who has made a major contribution to an industry and achieved notable commercial success in revenue and profit growth.",
+        "num_nominees": 6,
+        "entity_type": "person",
+    },
+    {
+        "name": "Emerging Business Leader of the Year",
+        "description": "This accolade will be awarded to the individual for their continuing commitment to excellence, developing best business practices and innovative strategies — someone who has made a visible contribution and will go on to make an even bigger impact with their vision and leadership in their respective business and industry. This person should have achieved positive financial results, increased shareholder value, and been an exemplar of sound management, proven corporate governance, demonstrated innovation, best business practices and accountability, together with intangible qualities such as integrity and vision.",
+        "num_nominees": 6,
+        "entity_type": "person",
+    },
+    {
+        "name": "Transformational Business Leader",
+        "description": "Business calls for profound and rapid change around the globe; everyone is being challenged to find creative solutions to problems and inefficiencies. This award is to honour and recognize the thought leader who has developed and transmitted the principles of transformational leadership, with a unique emphasis on personal transformation as the starting point for transforming businesses, communities, and the world.",
+        "num_nominees": 6,
+        "entity_type": "person",
+    },
+    {
+        "name": "Business Leader of the Year",
+        "description": "This accolade will be awarded to the individual whose passion and hard work have revolutionized traditional Indian business practices. She/he should have defined a global outlook, held shareholders' interests uppermost in mind, and clearly demonstrated strategic direction relentlessly.",
+        "num_nominees": 8,
+        "entity_type": "person",
+    },
+    {
+        "name": "Young Entrepreneur of the Year",
+        "description": "This accolade will be awarded to a young individual who has demonstrated exceptional entrepreneurial skills while carving out an innovative enterprise — someone who has shown tremendous potential for creating disruption in the industry while helping create jobs, lift the standard of living, usher in new technology, and keep competition alive in the marketplace.",
+        "num_nominees": 10,
+        "entity_type": "person",
+        "filters": {"max_age": 40},
     },
     {
         "name": "Lifetime Contribution to Media",
-        "description": "Honouring a media personality who has made outstanding lifetime contribution to Indian journalism, broadcasting, or digital media.",
+        "description": "This accolade will be awarded to the individual who has made a mark in media over the years, including print and broadcast media, cinema, art, and culture — whose immortal contribution has revolutionized the industry as a whole, who is solely responsible for changing the face of media in the 21st century and taking the legacy forward for the next generation, and who has transformed the news from an intellectual protégé into something the common person can relate to.",
         "num_nominees": 5,
         "entity_type": "person",
-        "criteria_ids": ["excellence", "integrity", "impact"],
-        "aima_criteria": criteria(
-            ("excellence", "Media Excellence", ["Sustained, high-quality body of work across a career in media"]),
-            ("integrity", "Journalistic Integrity", ["Consistent record of editorial independence and integrity"]),
-            ("impact", "Long-term Impact", ["Demonstrable influence on Indian journalism, broadcasting, or digital media"]),
-        ),
     },
 ]
 
@@ -225,20 +158,26 @@ async def main():
     print(f"{'Award':<48} Status")
     print("-" * 65)
     for a in AWARDS:
-        existing = await db.awards.find_one({"name": a["name"]})
-        if existing:
-            print(f"{a['name']:<48} already exists, skipped")
-            continue
-        doc = {
+        doc_fields = {
             "name": a["name"],
             "description": a["description"],
             "num_nominees": a["num_nominees"],
-            "criteria": a["criteria_ids"],
-            "aima_criteria": a["aima_criteria"],
+            "criteria": CRITERIA_IDS,
+            "aima_criteria": AIMA_CRITERIA,
             "entity_type": a["entity_type"],
             "filters": a.get("filters", {}),
+        }
+        existing = await db.awards.find_one({"name": a["name"]})
+        if existing:
+            await db.awards.update_one({"_id": existing["_id"]}, {"$set": doc_fields})
+            print(f"{a['name']:<48} updated")
+            continue
+
+        doc = {
+            **doc_fields,
             "results_published": False,
             "ai_metrics": [],
+            "head_jury_approved": False,
             "created_by": "system_seed",
             "created_at": datetime.utcnow(),
         }

@@ -12,6 +12,9 @@ AIMA_CRITERIA = [
     {"id": "governance", "title": "Governance & Societal Responsibilities"},
     {"id": "org_performance", "title": "Organisational Performance"},
     {"id": "general", "title": "General Eligibility"},
+    {"id": "innovation", "title": "Innovation & Strategic Partnership"},
+    {"id": "leadership", "title": "Leadership"},
+    {"id": "impact", "title": "Impact on Workforce & Environment"},
 ]
 
 def serialize(doc):
@@ -47,7 +50,8 @@ async def create_award(award: AwardCreate, user=Depends(get_current_user)):
     if user["role"] != "head_jury":
         raise HTTPException(status_code=403)
     db = get_database()
-    doc = {**award.dict(), "created_by": user["sub"], "created_at": datetime.utcnow(), "aima_criteria": AIMA_CRITERIA}
+    doc = {**award.dict(), "created_by": user["sub"], "created_at": datetime.utcnow(), "aima_criteria": AIMA_CRITERIA,
+           "results_published": False}
     result = await db.awards.insert_one(doc)
     await log_action(db, user, "create_award", {"award_name": award.name})
     return {"id": str(result.inserted_id), "message": "Award created"}
@@ -178,13 +182,43 @@ async def get_ranking_status(user=Depends(get_current_user)):
 
     return result
 
-@router.get("/audit-logs")
-async def get_audit_logs(user=Depends(get_current_user)):
+# ── Voting progress dashboard ─────────────────────────────────────────────────
+# Per award: completion percentage against all eligible voters (jury + head
+# jury), plus the names of who has voted so far — not who's ahead or how
+# anyone voted (that's the old, removed "Jury Vote Status" view).
+
+@router.get("/voting-progress")
+async def get_voting_progress(user=Depends(get_current_user)):
+    """For every award, what fraction of all eligible voters (jury + head jury)
+    have submitted their ranking so far, and who they are."""
     if user["role"] != "head_jury":
         raise HTTPException(status_code=403)
     db = get_database()
-    logs = await db.audit_logs.find().sort("timestamp", -1).to_list(500)
-    return [serialize(l) for l in logs]
+
+    total_voters = await db.users.count_documents({"role": {"$in": ["jury", "head_jury"]}})
+
+    pipeline = [
+        {"$group": {"_id": {"award_id": "$award_id", "jury_id": "$jury_id"}}},
+        {"$group": {"_id": "$_id.award_id", "voters": {"$addToSet": "$_id.jury_id"}}},
+    ]
+    voters_by_award = {row["_id"]: sorted(row["voters"]) async for row in db.jury_rankings.aggregate(pipeline)}
+
+    awards = await db.awards.find().sort("name", 1).to_list(200)
+    result = []
+    for a in awards:
+        award_id = str(a["_id"])
+        voters = voters_by_award.get(award_id, [])
+        voted_count = len(voters)
+        percentage = round((voted_count / total_voters) * 100) if total_voters else 0
+        result.append({
+            "award_id": award_id,
+            "award_name": a.get("name", ""),
+            "voted_count": voted_count,
+            "total_voters": total_voters,
+            "percentage": percentage,
+            "voters": voters,
+        })
+    return result
 
 
 # ── Head Jury Results ────────────────────────────────────────────────────────

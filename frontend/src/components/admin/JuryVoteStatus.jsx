@@ -48,10 +48,14 @@ function VoteScoresTab({ awards }) {
     }
   }
 
-  const choiceStyle = (choice) => {
-    if (choice === 'first') return { row: 'bg-amber-50/60', badge: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-400', label: '1st Choice', rank: 1 }
-    return { row: 'bg-gray-50/60', badge: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400', label: '2nd Choice', rank: 2 }
+  const CHOICE_STYLES = {
+    first:  { row: 'bg-amber-50/60',  badge: 'bg-amber-100 text-amber-700 border-amber-200',   dot: 'bg-amber-400',  label: '1st Choice', rank: 1 },
+    second: { row: 'bg-gray-50/60',   badge: 'bg-gray-100 text-gray-500 border-gray-200',       dot: 'bg-gray-400',   label: '2nd Choice', rank: 2 },
+    third:  { row: 'bg-orange-50/60', badge: 'bg-orange-100 text-orange-700 border-orange-200', dot: 'bg-orange-400', label: '3rd Choice', rank: 3 },
+    fourth: { row: 'bg-blue-50/60',   badge: 'bg-blue-100 text-blue-700 border-blue-200',       dot: 'bg-blue-400',   label: '4th Choice', rank: 4 },
+    fifth:  { row: 'bg-purple-50/60', badge: 'bg-purple-100 text-purple-700 border-purple-200', dot: 'bg-purple-400', label: '5th Choice', rank: 5 },
   }
+  const choiceStyle = (choice) => CHOICE_STYLES[choice] || CHOICE_STYLES.second
 
   return (
     <div>
@@ -173,7 +177,7 @@ function VoteScoresTab({ awards }) {
 
               {/* Footer summary */}
               <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-xs text-gray-400">{member.choices.length} of 2 choices submitted</span>
+                <span className="text-xs text-gray-400">{member.choices.length} choice{member.choices.length !== 1 ? 's' : ''} submitted</span>
               </div>
             </div>
           ))}
@@ -329,20 +333,6 @@ export default function JuryVoteStatus() {
           </button>
         }
       />
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        {[
-          { label: 'Jury Members', value: users.filter(u => u.role === 'jury').length,      color: '#00338D', bg: '#EEF3FF' },
-          { label: 'Head Jury',    value: users.filter(u => u.role === 'head_jury').length,  color: '#00338D', bg: '#EEF3FF' },
-          { label: 'Actions Logged', value: auditLogs.length,                                color: '#059669', bg: '#ECFDF5' },
-        ].map(({ label, value, color, bg }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-            <div className="text-2xl font-black mb-1" style={{ color }}>{value}</div>
-            <div className="text-gray-400 text-xs font-medium">{label}</div>
-          </div>
-        ))}
-      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">

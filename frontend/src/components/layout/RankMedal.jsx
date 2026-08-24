@@ -1,15 +1,17 @@
 /**
- * RankMedal — a clean, professional rank-1/2/3 indicator: a small solid
- * circle in gold/silver/bronze with the position number, matching the sharp
- * KPMG/AIMA executive design system. Used everywhere a medal emoji (🥇🥈🥉)
- * used to be — those read as decorative/AI-generated on a corporate tool.
+ * RankMedal — a clean, professional rank-1..5 indicator: a small solid
+ * circle with the position number, matching the sharp KPMG/AIMA executive
+ * design system. Used everywhere a medal emoji (🥇🥈🥉) used to be — those
+ * read as decorative/AI-generated on a corporate tool.
  *
- * `rank` is 1-based. Ranks beyond 3 render a plain numbered badge instead.
+ * `rank` is 1-based. Ranks beyond 5 render a plain numbered badge instead.
  */
 const TIERS = {
   1: { bg: 'linear-gradient(135deg, #D4AF37, #B8860B)', ring: 'rgba(212,175,55,0.35)' },
   2: { bg: 'linear-gradient(135deg, #B0B7C0, #8A94A0)', ring: 'rgba(176,183,192,0.35)' },
   3: { bg: 'linear-gradient(135deg, #C08552, #9C6B3E)', ring: 'rgba(192,133,82,0.35)' },
+  4: { bg: 'linear-gradient(135deg, #0057D9, #00338D)', ring: 'rgba(0,51,141,0.35)' },
+  5: { bg: 'linear-gradient(135deg, #7C4B94, #5B2D6E)', ring: 'rgba(91,45,110,0.35)' },
 }
 
 export default function RankMedal({ rank, size = 26 }) {
