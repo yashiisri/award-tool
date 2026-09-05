@@ -33,6 +33,16 @@ _STOPWORDS = {
     # Entrepreneurs") — real generic phrases, never a person's actual name.
     "young", "achievers", "achiever", "entrepreneur", "entrepreneurs", "under",
     "emerging", "rising", "stars", "innovators", "trailblazers", "changemakers",
+    # Web-page UI/chrome boilerplate — a repeated button/footer label (e.g. "Add
+    # Logo Now") can accidentally match the proper-noun-sequence regex and, if it
+    # repeats across enough scraped pages, outrank real names by frequency. Only
+    # matters when the real candidate pool is thin enough that the relaxed-fill
+    # pass reaches for low-mention-count names — caught live as "Logo Add Now"
+    # occupying a real nominee slot for Young Entrepreneur of the Year.
+    "logo", "add", "now", "click", "menu", "subscribe", "sign", "login",
+    "signup", "search", "share", "comment", "comments", "advertisement",
+    "sponsored", "cookie", "cookies", "privacy", "terms", "policy", "read",
+    "more", "continue", "reading", "download", "register", "submit",
 }
 
 _COMPANY_HINT_RE = re.compile(

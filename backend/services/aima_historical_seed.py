@@ -112,6 +112,38 @@ ALL_PAST_WINNERS: list[str] = sorted({
     if not any(c.islower() for c in w["name"][:3])  # exclude org names
 })
 
+# ── Known real foreign-MNC India subsidiaries — seed candidates for "MNC in
+# India of the Year" specifically ───────────────────────────────────────────
+# Live web search alone (even with anchor-example queries) kept surfacing
+# famous INDIAN companies for this category — genuine foreign-MNC-in-India
+# candidates are a narrower, harder-to-word search target than "top Indian
+# company." These are real, well-known, easily-verified companies — fed into
+# discover()'s Round 0 as additional candidates to verify via the normal
+# Wikipedia pipeline (never skips verification, never assumed to qualify).
+KNOWN_FOREIGN_MNC_INDIA_SUBSIDIARIES: list[str] = [
+    "ABB India", "Siemens India", "Unilever India", "Bosch India", "Nestlé India",
+    "Samsung India", "LG India", "Hyundai Motor India", "IBM India", "Nokia India",
+    "Coca-Cola India", "PepsiCo India", "Ericsson India",
+    "Schneider Electric India", "Philips India", "Mercedes-Benz India", "Whirlpool of India",
+    "Cisco India", "SAP India",
+]
+
+# ── Known real Indian film directors — seed candidates for "Director of the
+# Year" specifically ────────────────────────────────────────────────────────
+# Live search for this category — even with dedicated film-industry queries —
+# keeps surfacing famous ACTORS/ACTRESSES ahead of actual directors, since
+# they're simply more famous and have richer Wikipedia pages that pass
+# verification more easily. Confirmed live 2026-08-31. Real, well-known,
+# easily-verified directors — fed into discover()'s Round 0 like the foreign-
+# MNC list above, still verified through the normal Wikipedia pipeline, never
+# assumed to qualify.
+KNOWN_INDIAN_FILM_DIRECTORS: list[str] = [
+    "S. S. Rajamouli", "Sanjay Leela Bhansali", "Zoya Akhtar", "Karan Johar",
+    "Rajkumar Hirani", "Anurag Kashyap", "Vishal Bhardwaj", "Imtiaz Ali",
+    "Sandeep Reddy Vanga", "Aditya Chopra", "Ayan Mukerji", "Farhan Akhtar",
+    "R. Balki", "Nitesh Tiwari", "Kabir Khan", "Ashutosh Gowariker",
+]
+
 # ── Calibration: what kind of person wins each AIMA category ─────────────────
 CATEGORY_PROFILE: dict[str, dict] = {
     "Business Leader of the Year": {
@@ -131,9 +163,19 @@ CATEGORY_PROFILE: dict[str, dict] = {
     "Entrepreneur of the Year": {
         "entity_type": "person",
         "seniority": ["Founder", "Co-Founder", "MD"],
-        "org_scale": "Built a significant business — unicorn or large Indian company",
-        "examples": ["Harsh Jain", "Vivek Gupta", "Samir Mehta"],
-        "not": ["salaried CEOs of inherited businesses"],
+        "org_scale": "A business built/scaled substantially within roughly the last 10-20 years — a "
+                     "unicorn, a high-growth company, or a genuinely disruptive challenger brand that is "
+                     "STILL an underdog relative to older incumbents, not one that has itself become an "
+                     "old, established giant",
+        "examples": ["Harsh Jain", "Vivek Gupta", "Samir Mehta", "Falguni Nayar"],
+        "not": [
+            "salaried CEOs of inherited businesses",
+            "billionaire founders of multi-decade-old conglomerates who are now themselves the "
+            "'older, established' incumbent the award description explicitly contrasts against "
+            "(e.g. Gautam Adani, Sunil Mittal, Shiv Nadar, Mukesh Ambani) — real entrepreneurs "
+            "originally, but that career stage belongs to 'Business Leader of the Year' or "
+            "'Lifetime Contribution Award', not this award",
+        ],
     },
     "Young Entrepreneur Award": {
         "entity_type": "person",
@@ -151,9 +193,22 @@ CATEGORY_PROFILE: dict[str, dict] = {
     },
     "MNC in India of the Year": {
         "entity_type": "company",
-        "company_type": "Multinational corporation with significant India operations",
+        # Kept short and concrete on purpose — this string is interpolated directly
+        # into search-query text in build_grounded_queries() below, not just used
+        # for ranking calibration. A long clarifying sentence here (tried once,
+        # reverted) turns into an unusable run-on search query; the detailed
+        # "don't confuse with an Indian company" guidance belongs in "not" instead,
+        # which is ranking-only (never interpolated into a query string).
+        "company_type": "foreign multinational corporation's India subsidiary or operations",
         "examples": ["ABB India", "Siemens India", "Unilever India", "Bosch India"],
-        "not": ["Indian-origin companies", "PSUs", "startups"],
+        "not": [
+            "PSUs", "startups",
+            "Indian-headquartered companies with global/multinational operations, even large famous "
+            "ones (e.g. Bharti Airtel, Reliance Industries, Tata Motors, Tata Consultancy Services, "
+            "HCL Technologies, ICICI Bank) — these are Indian companies that expanded abroad, which is "
+            "'Indian MNC of the Year', the OPPOSITE of this award; having overseas operations does not "
+            "make an Indian-headquartered company a foreign MNC",
+        ],
     },
     "Outstanding Institution Builder": {
         "entity_type": "person",
@@ -186,9 +241,19 @@ CATEGORY_PROFILE: dict[str, dict] = {
     "Emerging Business Leader of the Year": {
         "entity_type": "person",
         "seniority": ["Chairman & MD", "Vice Chairman", "MD"],
-        "org_scale": "Mid-to-large Indian company, led by a newer-generation or recently-prominent leader",
+        "org_scale": "Mid-to-large Indian company led by a newer-generation or recently-prominent leader who "
+                     "is STILL building their national reputation — not yet a top-tier household-name business "
+                     "icon. Positive financial results and rising influence, but not decades of already-arrived "
+                     "fame",
         "examples": ["Ashish Bharat Ram", "GV Sanjay Reddy"],
-        "not": ["decades-established national icons (that's Business Leader of the Year, not this)", "startup founders under 30"],
+        "not": [
+            "startup founders under 30 (that's closer to Entrepreneur/Young Entrepreneur, not this)",
+            "already-arrived national business icons who have led their company for decades and are "
+            "already household names (e.g. Mukesh Ambani, Gautam Adani, N Chandrasekaran, Sunil Mittal, "
+            "Shiv Nadar) — real leaders, but that level of fame/tenure belongs to 'Business Leader of the "
+            "Year' or 'Lifetime Contribution Award', not this award, which is specifically about someone "
+            "still on the way up",
+        ],
     },
     "Lifetime Contribution to Media": {
         "entity_type": "person",
@@ -204,6 +269,35 @@ CATEGORY_PROFILE: dict[str, dict] = {
         "examples": ["T V Narendran", "Nandan Nilekani"],
         "not": ["startup founders", "leaders of small/regional companies"],
     },
+    "Indian MNC of the Year": {
+        "entity_type": "company",
+        "company_type": "Indian-origin company with significant global/multinational operations and revenue",
+        "examples": ["Tata Motors", "Infosys", "Wipro", "Sun Pharmaceutical Industries"],
+        "not": ["foreign multinational companies operating in India (that's 'MNC in India of the Year', a different award)",
+                "purely domestic Indian companies with no meaningful overseas revenue or operations", "PSUs"],
+    },
+    "Director of the Year": {
+        "entity_type": "person",
+        "seniority": ["Film Director", "Filmmaker"],
+        "focus": "Indian film direction — critically acclaimed and/or major commercially successful films",
+        "examples": ["S. S. Rajamouli", "Sanjay Leela Bhansali", "Zoya Akhtar"],
+        "not": ["actors", "producers with no directing credit", "business executives — this is a film award, not a business one"],
+    },
+}
+
+# ── Exact-name overrides ───────────────────────────────────────────────────
+# The real award names on file (backend/scripts/seed_aima_awards.py) sometimes
+# use different wording than the CATEGORY_PROFILE key that best fits them, and
+# generic token-overlap scoring can tie or misfire on those specific pairs
+# (e.g. "Young Entrepreneur of the Year" tied in score against "Entrepreneur
+# of the Year" and lost purely on dict iteration order, silently dropping its
+# age calibration). Known real award names are resolved here first — exact,
+# no ambiguity; only an unrecognized/custom award name falls through to the
+# fuzzy heuristic below.
+_EXACT_ALIASES: dict[str, str] = {
+    "corporate citizen of the year": "Corporate Citizen Award",
+    "young entrepreneur of the year": "Young Entrepreneur Award",
+    "business leader of the decade": "Business Leader of the Year",
 }
 
 
@@ -231,6 +325,10 @@ def match_category(award_name: str, award_description: str = "") -> str | None:
     an example only counts if its FULL name appears as whole words (not any
     single word from it) — so "N Chandrasekaran" only matches text that
     actually contains "chandrasekaran", not any text with a lone "n"."""
+    alias = _EXACT_ALIASES.get(award_name.strip().lower())
+    if alias:
+        return alias
+
     award_tokens = _tokenize(f"{award_name} {award_description}")
 
     best_cat, best_score = None, 0
@@ -284,6 +382,15 @@ def build_grounded_queries(
             f"India {award_name} nominees shortlist {year}",
             f"Economic Times Forbes India {award_name} {year}",
         ]
+        # Company examples never got the same "like {anchor}" anchoring the person
+        # branch below has — for a narrow/hard-to-word target like "a FOREIGN
+        # company's India subsidiary" (MNC in India of the Year), generic
+        # "top {company_type} India" queries just surface famous INDIAN companies
+        # by sheer web presence, the same fame-bias problem person categories had.
+        # Naming real examples directly narrows the search the same way it does
+        # for people.
+        if examples:
+            queries.append(f"companies like {' '.join(examples[:3])} India {year}")
     else:
         seniority_str = " OR ".join(seniority[:3])
         if examples:
@@ -291,7 +398,40 @@ def build_grounded_queries(
             queries.append(
                 f"India {award_name} {year} like {anchor} senior business leader"
             )
-        if age_constraint:
+        if matched_category == "Director of the Year":
+            # This one AIMA category is a film-industry award, not a business one —
+            # every generic template below (Forbes/ET/Business Standard, "CEOs
+            # chairmen", "business excellence") actively fights a film search, and
+            # "director" itself collides hard with the common corporate title
+            # (Managing Director, Executive Director), so live results were coming
+            # back as zero real filmmakers, only business executives. Dedicated
+            # film-industry queries instead.
+            queries += [
+                f"best Indian film director {year} Bollywood",
+                f"top Indian filmmakers {year} box office critically acclaimed",
+                f"Filmfare Award Best Director {year} India",
+                f"IMDb top Indian film directors {year}",
+                f"Indian cinema directors {year} National Film Award",
+                f"Bollywood director {year} blockbuster acclaimed filmmaker",
+                f"AIMA Managing India Awards Director of the Year nominees {year}",
+            ]
+        elif matched_category in ("Outstanding Contribution to Media", "Lifetime Contribution to Media"):
+            # Same generic-template bug as Director of the Year above, different
+            # symptom: "business excellence"/"CEOs chairmen"/Forbes-Business-
+            # Standard phrasing actively dilutes a search for editors/anchors/
+            # broadcasters. Confirmed live — "Lifetime Contribution to Media"
+            # extracted only 2 raw candidate names total across all rounds before
+            # this fix, when dozens of real senior Indian journalists exist.
+            queries += [
+                f"veteran Indian journalist editor {year} lifetime achievement",
+                f"top Indian news anchor editor-in-chief {year}",
+                f"Ramnath Goenka Award {year} India journalism",
+                f"Padma Shri Padma Bhushan journalist India {year}",
+                f"senior Indian broadcast media leader {year} news",
+                f"India Today CNN-News18 NDTV senior editor {year}",
+                f"AIMA Managing India Awards {matched_category} nominees {year}",
+            ]
+        elif age_constraint:
             # Award has an age ceiling (e.g. Young Entrepreneur) — generic "top Indian
             # business leader" queries reliably surface famous-but-decades-too-old
             # names (Ambani, Premji) regardless of an incidental "Young" in the award

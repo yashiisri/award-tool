@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { UserPlus, Users, Crown, X, Eye, EyeOff, Mail, Lock, User, Trash2 } from 'lucide-react'
 import api from '../../api/axios'
-import PageHeader from '../layout/PageHeader'
 
 const ROLE_META = {
   jury:      { label: 'Jury Member', color: 'var(--kpmg-blue)', bg: '#EEF3FF' },
@@ -57,28 +56,38 @@ export default function ManageUsers() {
   const headJuryUsers = users.filter(u => u.role === 'head_jury')
 
   return (
-    <div style={{ padding: '28px 32px', minHeight: '100vh', background: 'var(--surface)', fontFamily: "'Inter', sans-serif" }}>
-      <PageHeader
-        icon={UserPlus}
-        title="Manage Users"
-        subtitle="Create and manage jury and head jury accounts"
-        action={
-          <button onClick={() => setShowModal(true)} style={{
-            display: 'flex', alignItems: 'center', gap: 7,
-            padding: '9px 18px', background: 'var(--kpmg-blue)', color: '#fff',
-            border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            letterSpacing: '0.04em', textTransform: 'uppercase', transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--kpmg-navy)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'var(--kpmg-blue)'}>
-            <UserPlus size={13} /> Create User
-          </button>
-        }
-      />
+    <div style={{ padding: '32px 36px', minHeight: '100vh', background: 'var(--surface)', fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 26, flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div style={{ width: 26, height: 2, background: 'var(--gold)' }} />
+            <span style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--gold-bright)', fontWeight: 700 }}>
+              AIMA · Administration Console
+            </span>
+          </div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 600, color: 'var(--kpmg-navy)', letterSpacing: '-0.01em', margin: 0 }}>
+            Manage Users
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
+            Create and manage jury and head jury accounts
+          </p>
+        </div>
+        <button onClick={() => setShowModal(true)} style={{
+          display: 'flex', alignItems: 'center', gap: 7, borderRadius: 6,
+          padding: '9px 18px', background: 'var(--kpmg-blue)', color: '#fff',
+          border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          letterSpacing: '0.04em', textTransform: 'uppercase', transition: 'background 0.15s', flexShrink: 0,
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--kpmg-navy)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'var(--kpmg-blue)'}>
+          <UserPlus size={13} /> Create User
+        </button>
+      </div>
+      <div style={{ height: 1, background: 'var(--border-light)', marginBottom: 28 }} />
 
       {/* Stats */}
       {users.length > 0 && (
-        <div style={{ display: 'flex', gap: 1, marginBottom: 28, background: '#fff', border: '1px solid var(--border-light)' }}>
+        <div style={{ display: 'flex', gap: 1, marginBottom: 28, background: '#fff', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
           {[
             { label: 'Total Users', value: users.length },
             { label: 'Jury Members', value: juryUsers.length },
@@ -112,7 +121,7 @@ export default function ManageUsers() {
                 {list.map(u => {
                   const meta = ROLE_META[u.role]
                   return (
-                    <div key={u.id} style={{ background: '#fff', border: '1px solid var(--border-light)', borderTop: `3px solid ${meta.color}`, padding: '18px 20px' }}>
+                    <div key={u.id} style={{ background: '#fff', border: '1px solid var(--border-light)', borderTop: `3px solid ${meta.color}`, borderRadius: 8, padding: '18px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{ width: 38, height: 38, background: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{u.username?.[0]?.toUpperCase()}</span>

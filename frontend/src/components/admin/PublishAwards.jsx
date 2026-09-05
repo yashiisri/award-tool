@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Trophy, CheckCircle2, Briefcase, Building2, Loader2, Send, Award } from 'lucide-react'
 import api from '../../api/axios'
-import PageHeader from '../layout/PageHeader'
 import RankMedal from '../layout/RankMedal'
 
 function StandingsRow({ entry, i }) {
@@ -62,7 +61,8 @@ function PublishableAwardCard({ award, onPublished }) {
         <button
           onClick={handlePublish}
           disabled={publishing}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#00338D] text-white rounded-xl font-semibold text-sm hover:bg-[#002a73] disabled:opacity-60 transition-colors flex-shrink-0"
+          className="flex items-center gap-2 px-4 py-2.5 text-[#0A1628] rounded-lg font-semibold text-sm disabled:opacity-60 transition-colors flex-shrink-0"
+          style={{ background: 'var(--gold)' }}
         >
           {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           {publishing ? 'Publishing…' : 'Publish Results'}
@@ -110,13 +110,21 @@ export default function PublishAwards() {
 
   return (
     <div className="p-8">
-      <PageHeader
-        icon={Trophy}
-        title="Publish Awards"
-        subtitle="Publish final rankings based on the current vote calculation"
-        accent="#00338D"
-        light="#EEF2FA"
-      />
+      <div className="mb-6">
+        <div className="flex items-center gap-2.5 mb-2.5">
+          <div style={{ width: 26, height: 2, background: 'var(--gold)' }} />
+          <span style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--gold-bright)', fontWeight: 700 }} className="uppercase">
+            AIMA · Administration Console
+          </span>
+        </div>
+        <h1 style={{ fontFamily: "'Playfair Display', serif", color: 'var(--kpmg-navy)' }} className="text-[26px] font-semibold tracking-tight">
+          Publish Awards
+        </h1>
+        <p style={{ color: 'var(--text-muted)' }} className="text-[13px] mt-1">
+          Publish final rankings based on the current vote calculation
+        </p>
+      </div>
+      <div style={{ height: 1, background: 'var(--border-light)' }} className="mb-6" />
 
       {loading && (
         <div className="flex items-center justify-center py-24">

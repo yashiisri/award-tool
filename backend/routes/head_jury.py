@@ -5,6 +5,7 @@ from database import get_database
 from auth import get_current_user, get_password_hash
 from bson import ObjectId
 from datetime import datetime
+from services.vote_status import compute_award_vote_stats, get_my_confirmed_awards
 
 router = APIRouter()
 
@@ -58,11 +59,28 @@ async def create_award(award: AwardCreate, user=Depends(get_current_user)):
 
 @router.get("/awards")
 async def get_awards(user=Depends(get_current_user)):
+    """Each award also carries computed nomination/voting-readiness fields —
+    see services/vote_status.py for the rule. Same shared helper as
+    GET /jury/awards, so Jury and Head Jury always see the same phase status."""
     if user["role"] != "head_jury":
         raise HTTPException(status_code=403)
     db = get_database()
     awards = await db.awards.find().to_list(100)
-    return [serialize(a) for a in awards]
+    award_ids = [str(a["_id"]) for a in awards]
+    stats_by_award = await compute_award_vote_stats(db, award_ids)
+    my_confirmed = await get_my_confirmed_awards(db, user["sub"], award_ids)
+
+    result = []
+    for a in awards:
+        d = serialize(a)
+        d.update(stats_by_award.get(d["id"], {
+            "total_nominees": 0, "pending_nominations": 0, "nominations_ready": False,
+            "voting_enabled": False, "nomination_enabled": False, "total_reviewers": 0,
+            "confirmed_reviewers": 0, "all_confirmed": False, "voting_open": False,
+        }))
+        d["my_confirmed"] = d["id"] in my_confirmed
+        result.append(d)
+    return result
 
 # ── Nominees ───────────────────────────────────────────────────────────────────
 # Manual "add nominee" is gone — Head Jury (like Jury) can only suggest a name via
@@ -195,7 +213,11 @@ async def get_voting_progress(user=Depends(get_current_user)):
         raise HTTPException(status_code=403)
     db = get_database()
 
-    total_voters = await db.users.count_documents({"role": {"$in": ["jury", "head_jury"]}})
+    all_voter_docs = await db.users.find(
+        {"role": {"$in": ["jury", "head_jury"]}}, {"username": 1}
+    ).to_list(500)
+    all_voter_names = sorted({u["username"] for u in all_voter_docs})
+    total_voters = len(all_voter_names)
 
     pipeline = [
         {"$group": {"_id": {"award_id": "$award_id", "jury_id": "$jury_id"}}},
@@ -210,6 +232,7 @@ async def get_voting_progress(user=Depends(get_current_user)):
         voters = voters_by_award.get(award_id, [])
         voted_count = len(voters)
         percentage = round((voted_count / total_voters) * 100) if total_voters else 0
+        remaining = [name for name in all_voter_names if name not in voters]
         result.append({
             "award_id": award_id,
             "award_name": a.get("name", ""),
@@ -217,6 +240,7 @@ async def get_voting_progress(user=Depends(get_current_user)):
             "total_voters": total_voters,
             "percentage": percentage,
             "voters": voters,
+            "remaining": remaining,
         })
     return result
 

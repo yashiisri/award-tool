@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { MessageSquare, RefreshCw, Crown, Users, Award, User, Trash2, Loader2 } from 'lucide-react'
 import api from '../../api/axios'
-import PageHeader from '../layout/PageHeader'
 
 const TABS = [
   { key: 'jury',      label: 'Jury',      icon: Users },
@@ -57,66 +56,72 @@ export default function JuryComments() {
 
   return (
     <div className="p-8">
-      <PageHeader
-        icon={MessageSquare}
-        title="Jury Comments"
-        subtitle="Feedback and assessment notes submitted on nominees"
-        accent="#00338D"
-        light="#EEF2FA"
-        action={
-          <button
-            onClick={fetchAll}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-[#00338D] hover:border-[#00338D]/30 text-sm font-semibold transition-all shadow-sm"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
-        }
-      />
+      <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
+        <div>
+          <div className="flex items-center gap-2.5 mb-2.5">
+            <div style={{ width: 26, height: 2, background: 'var(--gold)' }} />
+            <span style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--gold-bright)', fontWeight: 700 }} className="uppercase">
+              AIMA · Administration Console
+            </span>
+          </div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", color: 'var(--kpmg-navy)' }} className="text-[26px] font-semibold tracking-tight">
+            Jury Comments
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }} className="text-[13px] mt-1">
+            Feedback and assessment notes submitted on nominees
+          </p>
+        </div>
+        <button
+          onClick={fetchAll}
+          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-[#00338D] hover:border-[#00338D]/30 text-sm font-semibold transition-all"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </button>
+      </div>
+      <div style={{ height: 1, background: 'var(--border-light)' }} className="mb-6" />
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6 w-fit">
         {TABS.map(({ key, label, icon: Icon }) => {
           const count = comments.filter(c => (c.jury_role || 'jury') === key).length
           return (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${tab === key ? 'bg-white text-[#00338D] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex items-center gap-2 px-5 py-2 rounded-md text-sm font-semibold transition-all ${tab === key ? 'bg-white text-[#00338D] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <Icon className="w-3.5 h-3.5" /> {label}
-              <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold ${tab === key ? 'bg-[#EEF2FA] text-[#00338D]' : 'bg-gray-200 text-gray-500'}`}>{count}</span>
+              <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${tab === key ? 'bg-[#EEF2FA] text-[#00338D]' : 'bg-gray-200 text-gray-500'}`}>{count}</span>
             </button>
           )
         })}
       </div>
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
-          <div className="w-14 h-14 bg-[#EEF2FA] rounded-2xl flex items-center justify-center mb-4">
-            <MessageSquare className="w-7 h-7 text-[#00338D]" />
-          </div>
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-lg border border-gray-100 text-center">
+          <MessageSquare className="w-8 h-8 mb-4" style={{ color: 'var(--gold)' }} strokeWidth={1.5} />
           <p className="text-gray-500 font-semibold text-sm mb-1">No comments yet</p>
           <p className="text-gray-400 text-xs">
             {tab === 'jury' ? 'Jury members haven\'t submitted any feedback.' : 'Head Jury hasn\'t submitted any feedback.'}
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm divide-y divide-gray-50">
+        <div className="bg-white border border-gray-100 rounded-lg overflow-hidden divide-y divide-gray-50">
           {filtered.map(c => (
             <div key={c.id} className="flex items-start gap-4 px-6 py-5 hover:bg-gray-50/50 transition-colors">
-              <div className="w-9 h-9 rounded-xl bg-[#00338D] flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-sm font-black">{c.jury_id?.[0]?.toUpperCase()}</span>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--kpmg-navy)' }}>
+                <span className="text-white text-sm font-bold">{c.jury_id?.[0]?.toUpperCase()}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                  <span className="font-bold text-[#0A1628] text-sm">{c.jury_id}</span>
+                  <span className="font-semibold text-[#0A1628] text-sm">{c.jury_id}</span>
                   {c.award_id && awardName(c.award_id) && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 bg-[#EEF2FA] text-[#00338D] text-xs font-semibold rounded-lg">
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-[#EEF2FA] text-[#00338D] text-xs font-semibold rounded">
                       <Award className="w-3 h-3" /> {awardName(c.award_id)}
                     </span>
                   )}
                   {c.nominee_id && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg">
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded">
                       <User className="w-3 h-3" /> {nomineeName(c.nominee_id) || 'Nominee no longer available'}
                     </span>
                   )}
@@ -130,7 +135,7 @@ export default function JuryComments() {
                 <button
                   onClick={() => handleDelete(c.id)}
                   disabled={deletingId === c.id}
-                  className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-50"
+                  className="flex items-center justify-center w-7 h-7 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-50"
                   title="Delete comment"
                 >
                   {deletingId === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}

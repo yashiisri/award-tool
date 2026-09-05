@@ -1,5 +1,5 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, ArrowLeft } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
 import LogoPair from './LogoPair'
 
 const ROLE_META = {
@@ -7,90 +7,62 @@ const ROLE_META = {
   head_jury: { label: 'Head Jury',     org: 'AIMA' },
   jury:      { label: 'Jury Member',   org: 'AIMA' },
 }
-const PILL_BG   = 'rgba(255,255,255,0.12)'
-const PILL_TEXT = 'rgba(255,255,255,0.85)'
 
-export default function Sidebar({ navItems, role, username, onLogout, showBackButton }) {
+// White sidebar in the same gold-accent / navy / Playfair language as the
+// sign-in screens, instead of the flat dark panel a generic dashboard
+// template defaults to.
+export default function Sidebar({ navItems, role, username, onLogout }) {
   const location = useLocation()
-  const navigate = useNavigate()
   const meta = ROLE_META[role] || ROLE_META.jury
   const initial = (username || meta.label)?.[0]?.toUpperCase()
 
   return (
     <aside style={{
-      width: 280,
+      width: 260,
       flexShrink: 0,
-      background: 'var(--kpmg-navy)',
+      background: '#fff',
       display: 'flex', flexDirection: 'column',
       height: '100vh', position: 'sticky', top: 0,
       fontFamily: "'Inter', system-ui, sans-serif",
-      borderRight: '1px solid rgba(255,255,255,0.06)',
+      borderRight: '1px solid var(--border-light)',
     }}>
 
-      {showBackButton && (
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer',
-            color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 500,
-            borderBottom: '1px solid rgba(255,255,255,0.08)', letterSpacing: '0.02em',
-            transition: 'color 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
-        >
-          <ArrowLeft size={14} /> Back to Home
-        </button>
-      )}
-
       {/* Logo area */}
-      <div style={{
-        padding: '18px 20px 14px',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-        position: 'relative',
-      }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'linear-gradient(to bottom, var(--gold), transparent 80%)' }} />
-        <LogoPair variant="dark" kpmgHeight={30} aimaHeight={34} gap={12} />
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 10 }}>
-          Managing India Awards
-        </div>
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.06em', marginTop: 2 }}>
-          Powered in partnership with KPMG
-        </div>
-      </div>
-
-      {/* User */}
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{
-          width: 36, height: 36,
-          background: 'var(--kpmg-blue)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontSize: 14, fontWeight: 700, flexShrink: 0,
-        }}>
-          {initial}
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ color: '#fff', fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {username || meta.label}
-          </div>
-          <span style={{
-            display: 'inline-block', marginTop: 4, padding: '2px 8px',
-            background: PILL_BG, color: PILL_TEXT,
-            fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
-          }}>
-            {meta.label}
+      <div style={{ padding: '20px 20px 16px', position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: 'linear-gradient(to bottom, var(--gold), transparent 75%)' }} />
+        <LogoPair variant="light" kpmgHeight={20} aimaHeight={24} gap={10} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
+          <div style={{ width: 16, height: 1.5, background: 'var(--gold)' }} />
+          <span style={{ fontSize: 9.5, color: 'var(--gold-bright)', letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700 }}>
+            Managing India Awards
           </span>
         </div>
       </div>
 
-      {/* Section label */}
-      <div style={{ padding: '18px 20px 8px', fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 600 }}>
-        Navigation
+      <div style={{ height: 1, background: 'var(--border-light)' }} />
+
+      {/* User */}
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 11 }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: 7,
+          background: 'var(--kpmg-navy)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0,
+        }}>
+          {initial}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: 'var(--kpmg-navy)', fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {username || meta.label}
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {meta.label} · {meta.org}
+          </span>
+        </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '4px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <nav style={{ flex: 1, padding: '10px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {navItems.map(({ path, basePath, icon: Icon, label, badge }) => {
           const active = location.pathname === (basePath || path)
           return (
@@ -98,23 +70,22 @@ export default function Sidebar({ navItems, role, username, onLogout, showBackBu
               key={basePath || path}
               to={path}
               style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '11px 12px',
+                display: 'flex', alignItems: 'center', gap: 11,
+                padding: '9px 12px', borderRadius: 6,
                 textDecoration: 'none',
-                fontSize: 14, fontWeight: active ? 600 : 400,
-                color: active ? '#fff' : 'rgba(255,255,255,0.55)',
-                background: active ? 'rgba(255,255,255,0.1)' : 'transparent',
-                borderLeft: `3px solid ${active ? 'var(--gold)' : 'transparent'}`,
+                fontSize: 13.5, fontWeight: active ? 600 : 400,
+                color: active ? 'var(--kpmg-blue)' : 'var(--text-secondary)',
+                background: active ? '#EEF3FF' : 'transparent',
+                borderLeft: `2px solid ${active ? 'var(--gold)' : 'transparent'}`,
                 transition: 'all 0.15s ease',
-                letterSpacing: active ? '0' : '0.01em',
               }}
-              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)' } }}
-              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.55)' } }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--surface)' } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent' } }}
             >
-              <Icon size={16} style={{ flexShrink: 0, opacity: active ? 1 : 0.65 }} />
+              <Icon size={15} style={{ flexShrink: 0, opacity: active ? 1 : 0.75 }} />
               <span style={{ flex: 1 }}>{label}</span>
               {badge && (
-                <span style={{ padding: '1px 7px', background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700 }}>
+                <span style={{ padding: '1px 7px', borderRadius: 3, background: '#DC2626', color: '#fff', fontSize: 10, fontWeight: 700 }}>
                   {badge}
                 </span>
               )}
@@ -124,16 +95,16 @@ export default function Sidebar({ navItems, role, username, onLogout, showBackBu
       </nav>
 
       {/* Logout */}
-      <div style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ padding: '12px', borderTop: '1px solid var(--border-light)' }}>
         <button onClick={onLogout} style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-          padding: '10px 12px', background: 'none', border: 'none', cursor: 'pointer',
-          color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: 400,
+          width: '100%', display: 'flex', alignItems: 'center', gap: 11,
+          padding: '9px 12px', borderRadius: 6, background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--text-muted)', fontSize: 13.5, fontWeight: 400,
           transition: 'all 0.15s ease',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#FCA5A5' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}>
-          <LogOut size={16} />
+        onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#DC2626' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)' }}>
+          <LogOut size={15} />
           <span>Sign Out</span>
         </button>
       </div>

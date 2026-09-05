@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Shield, Crown, Users, ArrowLeft, Eye, EyeOff, Mail, Lock, User } from 'lucide-react'
+import { Shield, Crown, Users, ArrowLeft, Eye, EyeOff, Mail, Lock, User, Check } from 'lucide-react'
 import api from '../api/axios'
 import LogoPair from '../components/layout/LogoPair'
 import ThemeToggle from '../components/layout/ThemeToggle'
 import { useTheme } from '../context/ThemeContext'
 
 const ROLE_CONFIG = {
-  admin:     { icon: Shield, title: 'Administrator',  org: 'KPMG',  useKpmg: true,  subtitle: 'Platform Administration & Oversight' },
-  head_jury: { icon: Crown,  title: 'Head Jury',      org: 'AIMA',  useKpmg: false, subtitle: 'Senior Evaluation & Final Certification' },
-  jury:      { icon: Users,  title: 'Jury Member',    org: 'AIMA',  useKpmg: false, subtitle: 'Nominee Evaluation & Scoring' },
+  admin:     { icon: Shield, title: 'Administrator',  org: 'KPMG',  useKpmg: true,  subtitle: 'Platform Administration & Oversight',
+    steps: ['Sign In', 'Manage Awards', 'Review Nominees', 'Publish Results'] },
+  head_jury: { icon: Crown,  title: 'Head Jury',      org: 'AIMA',  useKpmg: false, subtitle: 'Senior Evaluation & Final Certification',
+    steps: ['Sign In', 'Review & Approve Nominees', 'Monitor Jury Activity', 'Cast Your Official Vote'] },
+  jury:      { icon: Users,  title: 'Jury Member',    org: 'AIMA',  useKpmg: false, subtitle: 'Nominee Evaluation & Scoring',
+    steps: ['Sign In', 'Review Nominees', 'Submit Nominations', 'Cast Your Vote'] },
 }
 
 function AimaWordmark() {
@@ -35,7 +38,6 @@ export default function AuthPage({ onLogin }) {
   const titleColor    = isAima ? 'var(--kpmg-navy)' : '#fff'
   const titleSubColor = isAima ? 'var(--text-muted)' : 'rgba(255,255,255,0.35)'
   const subtitleColor = isAima ? 'var(--text-secondary)' : 'rgba(255,255,255,0.45)'
-  const bulletColor   = isAima ? 'var(--text-secondary)' : 'rgba(255,255,255,0.4)'
   const footerColor   = isAima ? 'var(--text-muted)' : 'rgba(255,255,255,0.18)'
   const logoVariant   = isAima ? 'light' : 'dark'
 
@@ -111,14 +113,32 @@ export default function AuthPage({ onLogin }) {
             {cfg.subtitle}
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {['Secure, role-based access', 'Real-time evaluation data', 'Full audit trail'].map(item => (
-              <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 4, height: 4, background: 'var(--gold)', opacity: 0.7 }} />
-                <span style={{ color: bulletColor, fontSize: 12, fontWeight: isAima ? 400 : 300 }}>{item}</span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {cfg.steps.map((step, i) => (
+              <div key={step} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: i === 0 ? '#B8860B' : 'transparent',
+                    border: i === 0 ? 'none' : '1.5px solid #D1D5DB',
+                  }}>
+                    {i === 0 && <Check size={11} color="#fff" strokeWidth={3} />}
+                  </div>
+                  {i < cfg.steps.length - 1 && <div style={{ width: 1, height: 24, background: '#E2E8F0' }} />}
+                </div>
+                <span style={{
+                  fontSize: 13, fontWeight: 500, paddingTop: 2,
+                  color: i === 0 ? titleColor : (isAima ? '#9CA3AF' : 'rgba(255,255,255,0.35)'),
+                }}>
+                  {step}
+                </span>
               </div>
             ))}
           </div>
+          <p style={{ fontSize: 11, color: isAima ? '#9CA3AF' : 'rgba(255,255,255,0.4)', marginTop: 16 }}>
+            Your progress is saved automatically at every step.
+          </p>
         </div>
 
         <div style={{ fontSize: 10, color: footerColor, letterSpacing: '0.04em' }}>

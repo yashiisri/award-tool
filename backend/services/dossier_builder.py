@@ -47,22 +47,36 @@ def _strip_json(text: str):
 
 def _build_brief(r: RawEnrichment) -> str:
     parts = [f"NAME: {r.name}"]
+    known = getattr(r, "known_designation", "") or getattr(r, "known_organisation", "")
+    if known:
+        # Ground truth the jury member typed in directly — authoritative, not
+        # something to re-derive from noisy search text. Shown first and flagged
+        # as verified so it isn't just one more competing signal among the rest.
+        parts.append(
+            f"VERIFIED DESIGNATION/ORGANISATION (confirmed by the nominator, use exactly as given, "
+            f"never contradict or replace with something inferred from search text below): "
+            f"{r.known_designation or '(not specified)'} at {r.known_organisation or '(not specified)'}"
+        )
     if r.wiki_desc:
         parts.append(f"DESCRIPTION: {r.wiki_desc}")
     if r.wiki_extract:
-        parts.append(f"WIKIPEDIA BIO: {r.wiki_extract[:600]}")
+        parts.append(f"WIKIPEDIA BIO: {r.wiki_extract[:1400]}")
     if r.forbes_text:
-        parts.append(f"FORBES DATA: {r.forbes_text[:300]}")
+        parts.append(f"FORBES DATA: {r.forbes_text[:600]}")
     if r.fortune_text:
-        parts.append(f"FORTUNE DATA: {r.fortune_text[:300]}")
+        parts.append(f"FORTUNE DATA: {r.fortune_text[:600]}")
     if r.crunchbase_text:
-        parts.append(f"CRUNCHBASE DATA: {r.crunchbase_text[:300]}")
+        parts.append(f"CRUNCHBASE DATA: {r.crunchbase_text[:600]}")
     if r.news_text:
-        parts.append(f"RECENT NEWS: {r.news_text[:600]}")
+        parts.append(f"RECENT NEWS: {r.news_text[:900]}")
     if r.ddg_text:
-        parts.append(f"NEWS/WEB: {r.ddg_text[:300]}")
+        parts.append(f"NEWS/WEB: {r.ddg_text[:2400]}")
+    if r.recent_activity_text:
+        parts.append(f"LAST 12 MONTHS ACTIVITY (dated search results): {r.recent_activity_text[:1200]}")
+    if r.financial_trend_text:
+        parts.append(f"LAST 12 MONTHS FINANCIAL/PERFORMANCE COVERAGE (dated search results): {r.financial_trend_text[:1200]}")
     if r.controversy_text:
-        parts.append(f"CONTROVERSY/CRITICAL COVERAGE SEARCH RESULTS: {r.controversy_text[:800]}")
+        parts.append(f"CONTROVERSY/CRITICAL COVERAGE SEARCH RESULTS: {r.controversy_text[:3000]}")
     return "\n".join(parts)
 
 
@@ -73,22 +87,37 @@ _PERSON_SCHEMA = """{
   "organisation": "Current employer",
   "photo_url": "from Wikipedia or empty string",
   "wikipedia_url": "page URL or empty string",
-  "bio": "2-3 sentence professional biography",
+  "bio": "4-6 sentence comprehensive professional biography — background, career trajectory (earlier roles, not just the current one, when the data covers them), and current role",
   "about_nominee": [
-    "Bullet point 1 — establishment, background, or founding story",
-    "Bullet point 2 — sector classification, key recognition or award",
-    "Bullet point 3 — key operational detail or scale"
+    "Bullet point — establishment, background, or founding story",
+    "Bullet point — education or early career, when the data covers it",
+    "Bullet point — career trajectory: earlier roles/companies before the current one, if the data supports it",
+    "Bullet point — sector classification, key recognition or award",
+    "Bullet point — key operational detail or scale",
+    "Bullet point — any additional grounded biographical detail the data supports (board memberships, public roles, notable affiliations)"
   ],
   "selection_rationale": [
-    "Bullet point 1 — specific financial metric or contract value (e.g. INR/USD figures)",
-    "Bullet point 2 — recent achievement, growth stat, or major milestone",
-    "Bullet point 3 — CSR, governance, or national impact detail"
+    "Bullet point — specific financial metric or contract value (e.g. INR/USD figures)",
+    "Bullet point — a second, distinct financial metric if the data supports one (e.g. revenue AND separately valuation/funding)",
+    "Bullet point — recent achievement, growth stat, or major milestone",
+    "Bullet point — a second recent achievement or milestone, if the data supports one",
+    "Bullet point — CSR, governance, or national impact detail",
+    "Bullet point — industry standing or competitive position, if the data supports it",
+    "Bullet point — a closing reasoning/validation bullet that explicitly ties the candidate's record back to the award's stated evaluation criteria"
   ],
-  "key_achievements": ["achievement 1", "achievement 2", "achievement 3"],
+  "key_achievements": ["achievement 1", "achievement 2", "achievement 3", "achievement 4 if available", "achievement 5 if available"],
+  "recent_activity": [
+    "Bullet — a specific, dated event/achievement from roughly the last 12 months",
+    "Bullet — another recent dated event, if the data supports one",
+    "Bullet — a third, if the data supports one",
+    "Bullet — a fourth, if the data supports one"
+  ],
   "financials": {
     "net_worth": "e.g. $1.2B or empty string",
     "revenue_led": "e.g. $40B annual revenue or empty string",
-    "company_valuation": "e.g. $500M or empty string"
+    "company_valuation": "e.g. $500M or empty string",
+    "compensation": "annual compensation/salary figure if reported, or empty string",
+    "stock_holdings": "equity stake or shareholding figure if reported, or empty string"
   },
   "awards_recognitions": ["Forbes 40 Under 40", "TIME 100"],
   "points_of_concern": [],
@@ -104,22 +133,37 @@ _COMPANY_SCHEMA = """{
   "organisation": "Company Name",
   "photo_url": "logo URL from Wikipedia or empty string",
   "wikipedia_url": "page URL or empty string",
-  "bio": "2-3 sentence company overview",
+  "bio": "4-6 sentence comprehensive company overview — origin, what it does, market position, and current standing",
   "about_nominee": [
-    "Bullet point 1 — when established, by whom, under which ministry/body if PSU",
-    "Bullet point 2 — classification, certifications, or industry recognition",
-    "Bullet point 3 — manufacturing locations, subsidiaries, or operational scale"
+    "Bullet point — when established, by whom, under which ministry/body if PSU",
+    "Bullet point — classification, certifications, or industry recognition",
+    "Bullet point — manufacturing locations, subsidiaries, or operational scale",
+    "Bullet point — product/service lines or business segments, if the data supports it",
+    "Bullet point — market position or competitive standing, if the data supports it",
+    "Bullet point — any additional grounded detail the data supports (ownership structure, major partnerships)"
   ],
   "selection_rationale": [
-    "Bullet point 1 — specific financial metric (revenue in INR/USD, contracts, order book)",
-    "Bullet point 2 — recent milestone, contract win, or growth achievement",
-    "Bullet point 3 — CSR initiatives, national impact, or govt/industry recognition"
+    "Bullet point — specific financial metric (revenue in INR/USD, contracts, order book)",
+    "Bullet point — a second, distinct financial metric if the data supports one",
+    "Bullet point — recent milestone, contract win, or growth achievement",
+    "Bullet point — a second recent milestone, if the data supports one",
+    "Bullet point — CSR initiatives, national impact, or govt/industry recognition",
+    "Bullet point — market/industry standing, if the data supports it",
+    "Bullet point — a closing reasoning/validation bullet that explicitly ties the company's record back to the award's stated evaluation criteria"
   ],
-  "key_achievements": ["milestone 1", "milestone 2", "milestone 3"],
+  "key_achievements": ["milestone 1", "milestone 2", "milestone 3", "milestone 4 if available", "milestone 5 if available"],
+  "recent_activity": [
+    "Bullet — a specific, dated event/milestone from roughly the last 12 months",
+    "Bullet — another recent dated event, if the data supports one",
+    "Bullet — a third, if the data supports one",
+    "Bullet — a fourth, if the data supports one"
+  ],
   "financials": {
     "funding_total": "e.g. $50M Series B or empty string",
     "revenue": "e.g. INR 2369 crore or empty string",
-    "valuation": "e.g. $1B unicorn or empty string"
+    "valuation": "e.g. $1B unicorn or empty string",
+    "profit": "net profit figure if reported, or empty string",
+    "growth_rate": "YoY growth percentage if reported, or empty string"
   },
   "awards_recognitions": ["Fortune 500", "Governance Now PSU Award"],
   "points_of_concern": [],
@@ -180,23 +224,58 @@ INSTRUCTIONS:
    fewer dossiers than candidates given, or an empty array, is always wrong; the caller ranks and trims the
    list afterward, that is not your job here.
 2. Use ONLY the raw data above — if a field is not found, use empty string "".
-3. Do NOT invent names, titles, numbers, or facts not present in the data.
+3. Do NOT invent names, titles, numbers, or facts not present in the data. This applies most when the
+   data is thin: if the raw research data for a candidate is sparse (a name and little else), the correct
+   "designation"/"organisation" output is the VERIFIED DESIGNATION/ORGANISATION line when one is given
+   above, or empty string "" when it isn't — never fill the gap with a plausible-sounding but ungrounded
+   guess. A short, honest, low-detail bio using only what's actually there is correct; a longer, more
+   specific-sounding bio built partly from invented detail is a factual error in a document a jury will
+   act on, even if no single sentence looks obviously wrong.
+   This also applies inside about_nominee/selection_rationale/key_achievements/recent_activity bullets,
+   not just the top-level designation/organisation fields: when a VERIFIED DESIGNATION/ORGANISATION line
+   is given above, do not write a bullet naming a DIFFERENT employer/company for this person unless the
+   source text explicitly frames it as PRIOR employment before their verified current role. Raw web text
+   about a real company can be noisy — a scraped page listing many employees can blend fragments from a
+   DIFFERENT person at the same company into the same snippet (a pronoun or an unrelated employer name
+   that doesn't match the verified person is the tell). If a specific detail in a snippet contradicts the
+   verified designation/organisation rather than adding to it, that detail is about someone else — leave
+   it out rather than repeat it as this candidate's own achievement.
 4. confidence_score: 0.0-1.0 based on how well the candidate fits this specific award AND tier (see CALIBRATION above).
    A poor fit still gets a real dossier — just score it low (e.g. 0.1-0.3), never omit it.
 5. Sort by confidence_score descending (best first).
 
+DEPTH — this is the single most important instruction in this prompt: write the MOST comprehensive,
+detailed dossier the raw data actually supports. The bullet counts in the schema above are a MINIMUM
+floor when data is thin, not a target to stop at. If the raw research data contains 10 distinct grounded
+facts about a candidate's finances, career, and achievements, the dossier should contain 10 bullets
+across the relevant fields, not a token 3. A jury making a real decision needs a full picture — biography,
+career trajectory, company/organisational background, and financial detail — not a highlights reel. Mine
+every section of the raw data (WIKIPEDIA BIO, FORBES/FORTUNE/CRUNCHBASE DATA, NEWS/WEB, LAST 12 MONTHS
+ACTIVITY, LAST 12 MONTHS FINANCIAL/PERFORMANCE COVERAGE) for every distinct, grounded fact before writing —
+do not stop after the first two or three obvious ones. The only real ceiling is instruction 3 above: never
+invent a fact that isn't in the raw data. Thin source data still means a short dossier; rich source data
+must produce a rich dossier — do not compress real, available detail into a handful of bullets for brevity.
+
 RATIONALE FORMAT — match this document style exactly:
 
-about_nominee: 3 bullet points covering:
+about_nominee: as many bullet points as the data grounds (schema shows 6 slots; use fewer only if the
+  data is genuinely thin) covering:
   - Establishment/founding background, parent body or ministry (for PSUs/govt entities) — state the founding
     year explicitly when the data gives one
+  - Education or early career, when the data covers it
+  - Career trajectory — earlier roles/companies before the current one, if the data supports it
   - Sector classification, certifications, or major industry recognition
   - Operational scale — locations, subsidiaries, key products/services
+  - Any other grounded biographical or organisational detail the data supports
 
-selection_rationale: 4-6 bullet points covering:
-  - Specific financial figures (revenue in INR/USD crore, order book, contracts won)
+selection_rationale: as many bullet points as the data grounds (schema shows 7 slots; use fewer only if
+  the data is genuinely thin) covering:
+  - Specific financial figures (revenue in INR/USD crore, order book, contracts won, valuation, funding,
+    compensation) — include every distinct financial figure the data provides, not just one
   - Recent growth milestone or major contract/project achievement
+  - A second recent achievement or milestone, if the data supports one
   - National impact or strategic importance
+  - Industry standing or competitive position
   - CSR initiatives or governance highlights (if data available)
   - A closing reasoning/validation bullet that explicitly ties the candidate's record back to the
     award's stated evaluation criteria — name which criteria they satisfy and why, so the bullet reads
@@ -215,6 +294,19 @@ EXAMPLE of good selection_rationale bullet:
 "BDL is targeting new orders worth INR 20,000 crore (USD 2.4 billion) over the next two to three years."
 "In FY24, BDL recorded revenue of INR 2,369 crore and made net profit of INR 612 crore, a growth of 74 per cent in profit."
 
+recent_activity — as many bullet points as the data grounds (up to 4-5) drawn ONLY from the LAST 12 MONTHS
+ACTIVITY and LAST 12 MONTHS FINANCIAL/PERFORMANCE COVERAGE sections above (when present):
+  - Each bullet must be a specific event, achievement, or figure actually present in those two sections —
+    a funding round, a quarterly result, a new contract, a leadership move, an award, etc.
+  - Only state an actual date/month/quarter when the source text gives one explicitly. Never write a
+    placeholder like "(date within last 12 months)" or "(recently)" — if no specific date is given, just
+    describe the event itself without a date qualifier. The section heading already establishes the
+    roughly-last-year window; a vague in-line date phrase adds nothing and reads as filler.
+  - Do NOT pull from the general WIKIPEDIA BIO or older RECENT NEWS text for this field — those can span
+    a whole career; this field is specifically the last-year window.
+  - If neither of those two sections is present or contains nothing datable/specific, return an empty
+    array — do not backfill with older achievements or invented recency.
+
 points_of_concern — due-diligence check, for the CONTROVERSY/CRITICAL COVERAGE SEARCH RESULTS section only:
   - Populate ONLY if that section above contains a real, specific, sourced controversy, criticism, lawsuit,
     regulatory action, or other negative coverage about THIS candidate.
@@ -224,12 +316,54 @@ points_of_concern — due-diligence check, for the CONTROVERSY/CRITICAL COVERAGE
     results, return an empty array. An empty array is the normal, expected result for most candidates —
     never manufacture a concern just to fill the field, and never treat an ordinary business setback
     (e.g. a stock dip, a missed target) as a "concern" unless the source text itself frames it that way.
+  - MATERIALITY BAR — being real and sourced is necessary but not sufficient. This dossier goes directly
+    to a jury voting on a live national award; the bar is FRAUD/LEGAL/REGULATORY, not "any negative press."
+    Ask: is this specifically a fraud, legal, or regulatory matter — not just something critical that was
+    said or written about the person.
+      INCLUDE ONLY: fraud or bribery charges/indictments, regulatory action (SEBI/CBI/ED/court), arrests,
+      criminal or civil legal proceedings naming this person, formal investigations, proven financial
+      misconduct, a regulator-imposed penalty. If it wouldn't show up in a court filing, an FIR, or a
+      regulator's order, it does not belong here.
+      DO NOT INCLUDE, even though each of these is real, sourced, and about the right person — these are
+      confirmed real examples of the WRONG kind of item to include, not hypotheticals:
+        "Customers criticized [X]'s vehicles and service" — a product/customer complaint, not legal.
+        "[X] faced criticism from [Y] for a scene in [film] perceived as [offensive]" — creative/artistic
+          criticism, not legal.
+        "[X] was criticized for casting choices in [project]" — entertainment-press opinion, not legal.
+        "Criticism over [X]'s product, with doctors/influencers questioning its validity" — public
+          skepticism or debate, not a regulatory finding, UNLESS a regulator or court is actually named
+          as having acted on it.
+        A single negative tweet/review, a hiring-policy complaint, a pricing complaint, a policy
+          disagreement with employees/customers that never escalated into a legal or regulatory matter.
+      If the CONTROVERSY section only contains this kind of item and nothing that clears the fraud/legal/
+      regulatory bar, that is equivalent to no real concern — return an empty array. Do not include a weak
+      item just because it's the only thing available; an empty array is the correct, expected answer for
+      most candidates, since most real people have no fraud or legal history to report.
 
 Return ONLY a valid JSON array. No markdown fences, no preamble, no explanation.
 Each object must follow this exact schema:
 {schema}
 
 JSON array:"""
+
+
+def _dedupe_by_name(dossiers: list[dict]) -> list[dict]:
+    """Belt-and-suspenders name dedup on the final LLM output — research_engine's
+    _dedupe_briefs() already dedupes raw candidates by Wikipedia URL, but two raw
+    briefs that never shared a wiki_url (e.g. one from the curated seed list, one
+    from live search, slightly different spelling/spacing) can still both reach
+    here and get written up as two separate dossiers for the same real person.
+    Call sites sort by confidence_score desc first, so the higher-confidence
+    (usually more complete) dossier for a given name wins."""
+    seen: set[str] = set()
+    out = []
+    for d in dossiers:
+        key = (d.get("name") or "").strip().lower()
+        if key and key in seen:
+            continue
+        seen.add(key)
+        out.append(d)
+    return out
 
 
 async def build_dossiers(
@@ -268,7 +402,7 @@ async def build_dossiers(
         )
         combined = person_dossiers + company_dossiers
         combined.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
-        return combined[:num_nominees]
+        return _dedupe_by_name(combined)[:num_nominees]
 
     # Start with a reasonable-sized slice — the prompt token budget is shared with
     # the response, and this account's free-tier TPM limit is small (8000
@@ -280,14 +414,15 @@ async def build_dossiers(
     capped = enriched[: max(num_nominees * 2, 6)]
     reserve = enriched[len(capped):]
 
-    # Write dossiers in small batches, not all at once — a single call asking for
-    # several full, richly-structured dossiers reliably exceeds this account's
-    # per-request token budget and gets silently truncated into invalid JSON. Each
-    # batch gets its own call; final ranking/truncation to num_nominees happens
-    # after merging. BATCH_SIZE=2 (not 3) because each candidate's brief now also
-    # carries NewsAPI + Wikipedia text, so a 3-candidate batch's prompt+response
-    # can approach this account's entire 8000 tokens/minute budget by itself.
-    BATCH_SIZE = 2
+    # Write dossiers ONE candidate per call, not batched — dossiers are now asked
+    # to be genuinely comprehensive (full career trajectory, multiple financial
+    # figures, up to 6-7 bullets per section), and this account's free-tier Groq
+    # budget is a tight 8000 tokens/minute shared across prompt + response. A
+    # batch of 2+ richer dossiers in one call reliably blew that budget and came
+    # back truncated into invalid JSON — worse than thin content. One candidate
+    # per call keeps each request's tokens well inside the ceiling; the
+    # sleep(1.5) between calls below lets the per-minute window recover.
+    BATCH_SIZE = 1
     all_cleaned: list[dict] = []
     batches_run = 0
 
@@ -325,7 +460,7 @@ async def build_dossiers(
         top_up_rounds += 1
 
     all_cleaned.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
-    result = all_cleaned[:num_nominees]
+    result = _dedupe_by_name(all_cleaned)[:num_nominees]
     logger.info("build_dossiers: %d dossiers from %d batches (entity=%s)",
                 len(result), batches_run, entity_type)
     return result
@@ -360,7 +495,7 @@ async def _build_batch(
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.2,
-                max_tokens=1200 * len(batch),
+                max_tokens=2400 * len(batch),
                 extra_body={"reasoning_effort": "low"},
                 attempts_per_model=1,
             )
@@ -385,6 +520,7 @@ async def _build_batch(
                 d.setdefault("about_nominee",       [])
                 d.setdefault("selection_rationale", [])
                 d.setdefault("key_achievements", [])
+                d.setdefault("recent_activity", [])
                 d.setdefault("financials",    {})
                 d.setdefault("awards_recognitions", [])
                 d.setdefault("points_of_concern", [])

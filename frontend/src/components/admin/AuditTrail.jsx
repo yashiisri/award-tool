@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { FileText, Clock, RefreshCw } from 'lucide-react'
+import { Clock, RefreshCw } from 'lucide-react'
 import api from '../../api/axios'
-import PageHeader from '../layout/PageHeader'
 
 const ROLE_STYLES = {
   admin:     { bg: '#EEF3FF', color: 'var(--kpmg-blue)' },
@@ -26,24 +25,34 @@ export default function AuditTrail() {
   const filtered = filter === 'all' ? logs : logs.filter(l => l.user_role === filter)
 
   return (
-    <div style={{ padding: '28px 32px', minHeight: '100vh', background: 'var(--surface)', fontFamily: "'Inter', sans-serif" }}>
-      <PageHeader
-        icon={FileText}
-        title="Audit Trail"
-        subtitle="Complete timestamped log of all platform activity"
-        action={
-          <button onClick={fetchLogs} style={{
-            display: 'flex', alignItems: 'center', gap: 7,
-            padding: '9px 16px', background: '#fff', color: 'var(--text-secondary)',
-            border: '1px solid var(--border)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
-          }}>
-            <RefreshCw size={13} style={{ animation: loading ? 'spin 0.7s linear infinite' : 'none' }} /> Refresh
-          </button>
-        }
-      />
+    <div style={{ padding: '32px 36px', minHeight: '100vh', background: 'var(--surface)', fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 26, flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div style={{ width: 26, height: 2, background: 'var(--gold)' }} />
+            <span style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--gold-bright)', fontWeight: 700 }}>
+              AIMA · Administration Console
+            </span>
+          </div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 600, color: 'var(--kpmg-navy)', letterSpacing: '-0.01em', margin: 0 }}>
+            Audit Trail
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
+            Complete timestamped log of all platform activity
+          </p>
+        </div>
+        <button onClick={fetchLogs} style={{
+          display: 'flex', alignItems: 'center', gap: 7,
+          padding: '9px 16px', borderRadius: 6, background: '#fff', color: 'var(--text-secondary)',
+          border: '1px solid var(--border)', fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
+        }}>
+          <RefreshCw size={13} style={{ animation: loading ? 'spin 0.7s linear infinite' : 'none' }} /> Refresh
+        </button>
+      </div>
+      <div style={{ height: 1, background: 'var(--border-light)', marginBottom: 28 }} />
 
       {/* Stats */}
-      <div style={{ display: 'flex', gap: 1, marginBottom: 24, background: '#fff', border: '1px solid var(--border-light)' }}>
+      <div style={{ display: 'flex', gap: 1, marginBottom: 24, background: '#fff', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
         {[
           { label: 'Total Events', value: logs.length },
           { label: 'Admin Actions', value: logs.filter(l => l.user_role === 'admin').length },
@@ -71,7 +80,7 @@ export default function AuditTrail() {
         ))}
       </div>
 
-      <div style={{ background: '#fff', border: '1px solid var(--border-light)' }}>
+      <div style={{ background: '#fff', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.8fr 1.5fr 3.5fr 1.7fr', padding: '12px 20px', borderBottom: '1px solid var(--border-light)', background: '#FAFBFD', gap: 12 }}>
           {['User', 'Role', 'Action', 'Details', 'Timestamp'].map(h => (
             <div key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{h}</div>

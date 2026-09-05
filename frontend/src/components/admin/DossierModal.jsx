@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { X, Printer, CheckCircle, AlertTriangle } from 'lucide-react'
-import kpmgLogo from '../../kpmg-logo.png'
+import LogoPair from '../layout/LogoPair'
 import { filterDisplaySources } from '../../utils/sourceDisplay'
 
 // Reads the actual structured AI research (nominee.rationale_data — the same
@@ -20,6 +20,7 @@ function parseRationale(nominee) {
         ? rd.selection_rationale
         : (rd.selection_rationale ? [rd.selection_rationale] : []),
       achievements: rd.key_achievements || [],
+      recentActivity: rd.recent_activity || [],
       financials: rd.financials || {},
       awardsRecognition: rd.awards_recognitions || [],
     }
@@ -33,6 +34,7 @@ function parseRationale(nominee) {
     about: [],
     selectionRationale: raw ? [raw] : [],
     achievements: [],
+    recentActivity: [],
     financials: {},
     awardsRecognition: [],
   }
@@ -56,13 +58,17 @@ export default function DossierModal({ award, nominees, onClose }) {
         <title>${award.name} — Dossier</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body {
+          @page { size: A4; margin: 0; }
+          html, body {
+            width: 210mm;
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
             font-size: 13px;
             color: #1a1a2e;
             background: white;
             line-height: 1.6;
+            overflow-x: hidden;
           }
+          img { max-width: 100%; display: block; }
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .page-break { page-break-before: always; }
@@ -74,8 +80,27 @@ export default function DossierModal({ award, nominees, onClose }) {
       </html>
     `)
     win.document.close()
-    win.focus()
-    setTimeout(() => { win.print() }, 400)
+
+    // Print only once every image in the popup has actually finished loading —
+    // a blind setTimeout(400) let the browser's print engine snapshot a photo
+    // still mid-load at its raw intrinsic size instead of the CSS-constrained
+    // 80x80 avatar box, which is what produced the giant, badly-cropped photo
+    // bleeding across the page in earlier exports.
+    const printWhenReady = () => {
+      const images = Array.from(win.document.images)
+      const pending = images.filter(img => !img.complete)
+      if (pending.length === 0) {
+        win.focus()
+        win.print()
+        return
+      }
+      let remaining = pending.length
+      const done = () => { remaining -= 1; if (remaining <= 0) { win.focus(); win.print() } }
+      pending.forEach(img => { img.addEventListener('load', done); img.addEventListener('error', done) })
+      // Absolute fallback in case an image neither loads nor errors within a few seconds
+      setTimeout(() => { if (remaining > 0) { win.focus(); win.print() } }, 4000)
+    }
+    setTimeout(printWhenReady, 50)
   }
 
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -123,13 +148,13 @@ export default function DossierModal({ award, nominees, onClose }) {
             {/* ── Cover page ── */}
             <div className="dossier-cover">
               <div className="dossier-cover-header">
-                <img src={kpmgLogo} alt="KPMG" className="dossier-logo" />
-                <div className="dossier-cover-line" />
+                <LogoPair variant="light" kpmgHeight={30} aimaHeight={34} gap={16} />
               </div>
 
               <div className="dossier-cover-body">
                 <p className="dossier-cover-eyebrow">AWARD DOSSIER</p>
                 <h1 className="dossier-cover-title">{award.name}</h1>
+                <div className="dossier-cover-title-rule" />
                 {award.description && (
                   <p className="dossier-cover-desc">{award.description}</p>
                 )}
@@ -259,6 +284,21 @@ export default function DossierModal({ award, nominees, onClose }) {
                       </div>
                     )}
 
+                    {/* Recent activity */}
+                    {parsed.recentActivity.length > 0 && (
+                      <div className="dossier-field">
+                        <p className="dossier-field-label">Recent Activity</p>
+                        <ul className="dossier-list">
+                          {parsed.recentActivity.map((item, j) => (
+                            <li key={j} className="dossier-list-item">
+                              <span className="dossier-bullet" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     {/* Key achievements */}
                     {parsed.achievements.length > 0 && (
                       <div className="dossier-field">
@@ -371,49 +411,44 @@ export default function DossierModal({ award, nominees, onClose }) {
 
         /* Cover */
         .dossier-cover {
-          background: linear-gradient(145deg, #00338D 0%, #004ccc 60%, #00338D 100%);
+          background: #FFFFFF;
           min-height: 420px;
           padding: 40px 48px;
           display: flex;
           flex-direction: column;
           position: relative;
-          overflow: hidden;
-        }
-        .dossier-cover::before {
-          content: '';
-          position: absolute; inset: 0;
-          background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
-          background-size: 28px 28px;
+          border-bottom: 3px solid var(--gold, #C9A24B);
         }
         .dossier-cover-header {
           display: flex; align-items: center; gap: 16px; margin-bottom: 48px; position: relative;
         }
-        .dossier-logo { height: 40px; width: auto; object-fit: contain; filter: brightness(0) invert(1); }
-        .dossier-cover-line { width: 1px; height: 28px; background: rgba(255,255,255,0.3); }
         .dossier-cover-body { flex: 1; position: relative; }
         .dossier-cover-eyebrow {
-          color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 700;
+          color: var(--gold-bright, #B8892F); font-size: 11px; font-weight: 700;
           letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 12px;
         }
         .dossier-cover-title {
           font-family: 'Playfair Display', serif;
-          color: white; font-size: 36px; font-weight: 600;
-          letter-spacing: -0.01em; line-height: 1.15; margin-bottom: 14px; max-width: 600px;
+          color: #0A1628; font-size: 36px; font-weight: 600;
+          letter-spacing: -0.01em; line-height: 1.15; margin-bottom: 6px; max-width: 640px;
         }
+        .dossier-cover-title-rule { width: 44px; height: 3px; background: var(--gold, #C9A24B); margin-bottom: 18px; }
         .dossier-cover-desc {
-          color: rgba(255,255,255,0.65); font-size: 14px; line-height: 1.7; max-width: 560px; margin-bottom: 36px;
+          color: #5A6B80; font-size: 14px; line-height: 1.7; max-width: 580px; margin-bottom: 36px;
         }
         .dossier-cover-stats {
           display: flex; gap: 24px;
         }
         .dossier-stat-box {
-          background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-          border-radius: 12px; padding: 16px 20px; min-width: 100px; text-align: center;
+          background: linear-gradient(180deg, #F7F9FC 0%, #FFFFFF 100%);
+          border: 1px solid #E8ECF0;
+          border-radius: 10px; padding: 16px 20px; min-width: 100px; text-align: center;
         }
-        .dossier-stat-num { display: block; color: white; font-size: 28px; font-weight: 900; line-height: 1; }
-        .dossier-stat-label { display: block; color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600; margin-top: 4px; }
+        .dossier-stat-num { display: block; color: #00338D; font-size: 28px; font-weight: 900; line-height: 1; }
+        .dossier-stat-label { display: block; color: #9BA8B5; font-size: 11px; font-weight: 600; margin-top: 4px; }
         .dossier-cover-footer {
-          margin-top: 32px; color: rgba(255,255,255,0.45); font-size: 11px; position: relative;
+          margin-top: 32px; padding-top: 16px; border-top: 1px solid #EEF2F7;
+          color: #9BA8B5; font-size: 11px; position: relative;
         }
 
         /* Section */
@@ -511,12 +546,14 @@ const PRINT_STYLES = `
   .dossier-section { page-break-after: always; }
   .dossier-profile { page-break-inside: avoid; }
   .page-break { page-break-before: always; }
-  .dossier-cover { background: linear-gradient(145deg, #00338D 0%, #004ccc 60%, #00338D 100%) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .dossier-cover { background: #FFFFFF !important; border-bottom: 3px solid #C9A24B !important; }
+  .dossier-stat-box { background: linear-gradient(180deg, #F7F9FC 0%, #FFFFFF 100%) !important; }
   .dossier-profile-header { background: linear-gradient(135deg, #F7F9FC 0%, #EEF2FA 100%) !important; }
   .dossier-profile-avatar { background: linear-gradient(135deg, #00338D, #00338D) !important; }
   .dossier-score-bar { background: linear-gradient(90deg, #00338D, #00338D) !important; }
-  .dossier-cover-title { color: white !important; }
-  .dossier-cover-desc { color: rgba(255,255,255,0.65) !important; }
-  .dossier-stat-num { color: white !important; }
+  .dossier-cover-title { color: #0A1628 !important; }
+  .dossier-cover-desc { color: #5A6B80 !important; }
+  .dossier-stat-num { color: #00338D !important; }
   .dossier-badge-ai { background: linear-gradient(90deg,#EDE9FE,#E0F2FE) !important; }
 `

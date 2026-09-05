@@ -154,6 +154,7 @@ async def run_ai_search(
                 "about_nominee":       dossier.get("about_nominee", []),
                 "selection_rationale": dossier.get("selection_rationale", []),
                 "key_achievements":    dossier.get("key_achievements", []),
+                "recent_activity":     dossier.get("recent_activity", []),
                 "financials":          dossier.get("financials", {}),
                 "awards_recognitions": dossier.get("awards_recognitions", []),
                 "points_of_concern":   dossier.get("points_of_concern", []),

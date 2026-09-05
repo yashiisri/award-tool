@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { BarChart3, RefreshCw, Star, UserCheck, Trash2, Plus, Flag, Trophy, Medal, ChevronDown, GripVertical, Building2, Briefcase, Clock } from 'lucide-react'
+import { RefreshCw, Star, UserCheck, Trash2, Plus, Flag, Trophy, Medal, ChevronDown, GripVertical, Building2, Briefcase, Clock } from 'lucide-react'
 import api from '../../api/axios'
-import PageHeader from '../layout/PageHeader'
 import RankMedal from '../layout/RankMedal'
 
 const ACTION_ICON = {
@@ -318,24 +317,32 @@ export default function JuryVoteStatus() {
 
   return (
     <div className="p-8">
-      <PageHeader
-        icon={BarChart3}
-        title="Jury Vote Status"
-        subtitle="Track rankings, jury activity, and member participation"
-        accent="#00338D"
-        light="#EEF2FA"
-        action={
-          <button
-            onClick={fetchAll}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-[#00338D] hover:border-[#00338D]/30 text-sm font-semibold transition-all shadow-sm"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
-        }
-      />
+      <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
+        <div>
+          <div className="flex items-center gap-2.5 mb-2.5">
+            <div style={{ width: 26, height: 2, background: 'var(--gold)' }} />
+            <span style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--gold-bright)', fontWeight: 700 }} className="uppercase">
+              AIMA · Administration Console
+            </span>
+          </div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", color: 'var(--kpmg-navy)' }} className="text-[26px] font-semibold tracking-tight">
+            Jury Vote Status
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }} className="text-[13px] mt-1">
+            Track rankings, jury activity, and member participation
+          </p>
+        </div>
+        <button
+          onClick={fetchAll}
+          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-[#00338D] hover:border-[#00338D]/30 text-sm font-semibold transition-all"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </button>
+      </div>
+      <div style={{ height: 1, background: 'var(--border-light)' }} className="mb-6" />
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6 w-fit">
         {[
           ['top3', 'Top 3 Rankings'],
           ['votes', 'Vote Scores'],

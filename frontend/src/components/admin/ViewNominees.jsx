@@ -7,7 +7,6 @@ import {
   FileText, Flag, ShieldCheck, ShieldOff, Printer
 } from 'lucide-react'
 import api from '../../api/axios'
-import PageHeader from '../layout/PageHeader'
 import NomineeProfileCard from './NomineeProfileCard'
 import DossierModal from './DossierModal'
 
@@ -241,45 +240,55 @@ export default function ViewNominees() {
 
   return (
     <div className="p-8">
-      <PageHeader
-        icon={Users}
-        title="Nominees"
-        subtitle="Manage, approve, and review nominees for each award"
-        accent="#00338D"
-        light="#EEF2FA"
-        action={
-          <div className="flex gap-2 flex-wrap">
-            {selectedAward && nominees.length > 0 && (
-              <button
-                onClick={() => setShowDossier(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#00338D] rounded-xl font-semibold text-sm hover:bg-[#EEF2FA] hover:border-[#00338D]/30 transition-all shadow-sm"
-              >
-                <FileText className="w-4 h-4" /> Generate Dossier
-              </button>
-            )}
-            {selectedAward && (
-              <>
-                <button
-                  onClick={handleAISearch}
-                  disabled={aiLoading}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#00338D] to-[#00338D] text-white rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-60 transition-all shadow-sm"
-                >
-                  {aiLoading
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Researching...</>
-                    : <><Sparkles className="w-4 h-4" /> AI Search</>
-                  }
-                </button>
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[#00338D] text-white rounded-xl font-semibold text-sm hover:bg-[#002a73] transition-colors shadow-sm"
-                >
-                  <Plus className="w-4 h-4" /> Add Nominee
-                </button>
-              </>
-            )}
+      <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
+        <div>
+          <div className="flex items-center gap-2.5 mb-2.5">
+            <div style={{ width: 26, height: 2, background: 'var(--gold)' }} />
+            <span style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--gold-bright)', fontWeight: 700 }} className="uppercase">
+              AIMA · Administration Console
+            </span>
           </div>
-        }
-      />
+          <h1 style={{ fontFamily: "'Playfair Display', serif", color: 'var(--kpmg-navy)' }} className="text-[26px] font-semibold tracking-tight">
+            Nominees
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }} className="text-[13px] mt-1">
+            Manage, approve, and review nominees for each award
+          </p>
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          {selectedAward && nominees.length > 0 && (
+            <button
+              onClick={() => setShowDossier(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#00338D] rounded-lg font-semibold text-sm hover:bg-[#EEF2FA] hover:border-[#00338D]/30 transition-all"
+            >
+              <FileText className="w-4 h-4" /> Generate Dossier
+            </button>
+          )}
+          {selectedAward && (
+            <>
+              <button
+                onClick={handleAISearch}
+                disabled={aiLoading}
+                className="flex items-center gap-2 px-4 py-2.5 text-[#0A1628] rounded-lg font-semibold text-sm disabled:opacity-60 transition-all"
+                style={{ background: 'var(--gold)' }}
+              >
+                {aiLoading
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Researching...</>
+                  : <><Sparkles className="w-4 h-4" /> AI Search</>
+                }
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#00338D] text-white rounded-lg font-semibold text-sm hover:bg-[#002a73] transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Add Nominee
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      <div style={{ height: 1, background: 'var(--border-light)' }} className="mb-6" />
 
       {/* Award selector */}
       <div className="mb-6">
@@ -288,7 +297,7 @@ export default function ViewNominees() {
           <select
             value={selectedAward}
             onChange={e => setSelectedAward(e.target.value)}
-            className="w-full appearance-none px-4 py-3 bg-white border border-gray-200 rounded-xl text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#00338D]/30 text-sm shadow-sm pr-10"
+            className="w-full appearance-none px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#00338D]/20 text-sm pr-10"
           >
             <option value="">Choose an award</option>
             {awards.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -299,12 +308,9 @@ export default function ViewNominees() {
 
       {/* Award info banner */}
       {currentAward && (
-        <div className="mb-6 p-4 bg-[#EEF2FA] border border-[#00338D]/15 rounded-xl flex items-start gap-3">
-          <div className="w-8 h-8 bg-[#00338D] rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
+        <div className="mb-6 p-4 bg-white border border-gray-100 rounded-lg flex items-start gap-3" style={{ borderLeft: '2px solid var(--gold)' }}>
           <div className="flex-1">
-            <p className="font-bold text-[#00338D] text-sm">{currentAward.name}</p>
+            <p style={{ fontFamily: "'Playfair Display', serif" }} className="font-semibold text-[#0A1628] text-sm">{currentAward.name}</p>
             <p className="text-gray-500 text-xs mt-0.5">{currentAward.description}</p>
           </div>
           <div className="text-right flex-shrink-0">
@@ -316,24 +322,21 @@ export default function ViewNominees() {
 
       {/* AI loading */}
       {aiLoading && (
-        <div className="mb-6 p-5 bg-[#EEF2FF] border border-[#00338D]/15 rounded-xl flex items-center gap-4">
-          <div className="w-10 h-10 bg-[#00338D] rounded-xl flex items-center justify-center flex-shrink-0">
-            <Brain className="w-5 h-5 text-white animate-pulse" />
-          </div>
+        <div className="mb-6 p-4 bg-white border border-gray-100 rounded-lg flex items-center gap-4">
+          <Loader2 className="w-5 h-5 text-[#00338D] animate-spin flex-shrink-0" />
           <div className="flex-1">
-            <p className="font-bold text-[#0A1628] text-sm">AI research engine running...</p>
+            <p className="font-semibold text-[#0A1628] text-sm">AI research engine running…</p>
             <p className="text-[#6B7A8D] text-xs mt-0.5">
               Classifying award → Generating candidates → Enriching from Wikipedia &amp; Forbes → Building dossiers
             </p>
           </div>
-          <Loader2 className="w-5 h-5 text-[#00338D] animate-spin flex-shrink-0" />
         </div>
       )}
 
       {/* AI error */}
       {aiError && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="mb-6 p-4 bg-white border border-red-100 rounded-lg flex items-start gap-3" style={{ borderLeft: '2px solid #DC2626' }}>
+          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-semibold text-red-700 text-sm">AI Search Failed</p>
             <p className="text-red-600 text-xs mt-0.5">{aiError}</p>
@@ -344,10 +347,8 @@ export default function ViewNominees() {
 
       {/* Nominees grid */}
       {nominees.length === 0 && selectedAward ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 text-center">
-          <div className="w-14 h-14 bg-[#EEF2FA] rounded-2xl flex items-center justify-center mb-4">
-            <Users className="w-7 h-7 text-[#00338D]" />
-          </div>
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-lg border border-gray-100 text-center">
+          <Users className="w-8 h-8 mb-4" style={{ color: 'var(--gold)' }} strokeWidth={1.5} />
           <p className="text-gray-500 font-semibold text-sm mb-1">No nominees yet</p>
           <p className="text-gray-400 text-xs">Use AI Search or add manually to get started.</p>
         </div>
@@ -362,30 +363,36 @@ export default function ViewNominees() {
             return (
               <div
                 key={nom.id}
-                className={`group bg-white border rounded-2xl overflow-hidden transition-all shadow-sm ${
-                  isFlagged ? 'border-red-200' : isApproved ? 'border-emerald-200' : 'border-gray-100 hover:border-[#00338D]/25 hover:shadow-lg'
-                }`}
+                className="group bg-white border rounded-lg overflow-hidden transition-all"
+                style={{
+                  borderColor: isFlagged ? '#FCA5A5' : isApproved ? '#A7D9BE' : 'var(--border-light)',
+                  borderTopWidth: 3,
+                  borderTopColor: isFlagged ? '#DC2626' : isApproved ? '#15803D' : 'var(--border-light)',
+                }}
               >
                 {/* Header band + circular photo */}
-                <div className="pt-4 pb-4 px-5 bg-gradient-to-b from-[#EEF2FA] to-white text-center">
+                <div
+                  className="pt-4 pb-4 px-5 text-center"
+                  style={{ background: 'linear-gradient(180deg, #F7F9FC 0%, #FFFFFF 100%)', borderBottom: '1px solid var(--border-light)' }}
+                >
                   {/* Status badges — normal flow, above the circle, never overlapping it */}
                   {(isApproved || isFlagged || isPending) && (
                     <div className="flex items-center justify-between gap-1 mb-3">
                       <span>
                         {isApproved && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white text-xs font-semibold rounded-full shadow-sm">
+                          <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: '#15803D' }}>
                             <CheckCircle className="w-3 h-3" /> Approved
                           </span>
                         )}
                       </span>
                       <span>
                         {isFlagged && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500 text-white text-xs font-semibold rounded-full shadow-sm">
+                          <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: '#DC2626' }}>
                             <AlertTriangle className="w-3 h-3" /> Flagged
                           </span>
                         )}
                         {isPending && !isFlagged && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-[#00338D] text-white text-xs font-semibold rounded-full shadow-sm">
+                          <span className="flex items-center gap-1 text-xs font-semibold text-gray-400">
                             <Loader2 className="w-3 h-3 animate-spin" /> Building profile
                           </span>
                         )}
@@ -394,8 +401,11 @@ export default function ViewNominees() {
                   )}
 
                   <div
-                    className={`w-20 h-20 rounded-full mx-auto overflow-hidden cursor-pointer relative ring-4 ring-white ${nom.photo_url ? 'shadow-md' : ''}`}
-                    style={{ background: nom.photo_url ? 'linear-gradient(135deg, #00338D, #0057D9)' : '#E2E5EA' }}
+                    className="w-16 h-16 rounded-full mx-auto overflow-hidden cursor-pointer relative"
+                    style={{
+                      background: nom.photo_url ? 'transparent' : '#EEF3FF',
+                      boxShadow: '0 0 0 3px #fff, 0 0 0 4px var(--border-light)',
+                    }}
                     onClick={() => setSelectedNominee(nom)}
                   >
                     {nom.photo_url && (
@@ -403,17 +413,19 @@ export default function ViewNominees() {
                         onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
                     )}
                     <div className="w-full h-full items-center justify-center absolute inset-0" style={{ display: nom.photo_url ? 'none' : 'flex' }}>
-                      <span className="text-[#6B7280] text-lg font-semibold">{nom.name?.[0]}</span>
+                      <span style={{ color: 'var(--kpmg-blue)' }} className="text-lg font-semibold">{nom.name?.[0]}</span>
                     </div>
                   </div>
 
                   <h3
-                    className="mt-3 font-bold text-[#0A1628] text-[15px] leading-snug cursor-pointer hover:text-[#00338D] transition-colors line-clamp-1"
+                    style={{ fontFamily: "'Playfair Display', serif" }}
+                    className="mt-3 font-semibold text-[#0A1628] text-[15px] leading-snug cursor-pointer hover:text-[#00338D] transition-colors line-clamp-1"
                     onClick={() => setSelectedNominee(nom)}
                   >
                     {nom.name}
                   </h3>
-                  <p className="text-gray-500 text-xs mt-0.5 truncate">{nom.designation}{nom.organisation ? ` · ${nom.organisation}` : ''}</p>
+                  <div style={{ width: 22, height: 2, background: 'var(--gold)', margin: '6px auto 0' }} />
+                  <p className="text-gray-500 text-xs mt-2 truncate">{nom.designation}{nom.organisation ? ` · ${nom.organisation}` : ''}</p>
                 </div>
 
                 <div className="px-4 pb-4">
@@ -428,15 +440,15 @@ export default function ViewNominees() {
                       <button
                         onClick={() => handleValidate(nom.id)}
                         disabled={!!busy}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-[#00338D] bg-[#EEF2FA] border border-[#00338D]/20 rounded-lg hover:bg-[#00338D] hover:text-white hover:border-[#00338D] transition-all disabled:opacity-50"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-[#00338D] bg-white border border-gray-200 rounded-md hover:bg-[#00338D] hover:text-white hover:border-[#00338D] transition-all disabled:opacity-50"
                         title="Approve nominee"
                       >
                         {busy === 'validate' ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
                         Approve
                       </button>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 rounded-lg cursor-default">
-                        <CheckCircle className="w-3.5 h-3.5" /> Approved
+                      <div className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-400 cursor-default">
+                        <CheckCircle className="w-3.5 h-3.5" style={{ color: '#15803D' }} /> Approved
                       </div>
                     )}
 
@@ -445,7 +457,7 @@ export default function ViewNominees() {
                       <button
                         onClick={() => handleUnflag(nom.id)}
                         disabled={!!busy}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all disabled:opacity-50"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-md hover:border-gray-400 transition-all disabled:opacity-50"
                         title="Clear flag"
                       >
                         {busy === 'unflag' ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldOff className="w-3.5 h-3.5" />}
@@ -454,7 +466,7 @@ export default function ViewNominees() {
                       <button
                         onClick={() => handleFlag(nom.id)}
                         disabled={!!busy}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 rounded-lg hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all disabled:opacity-50"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-400 bg-white border border-gray-200 rounded-md hover:text-amber-600 hover:border-amber-300 transition-all disabled:opacity-50"
                         title="Flag nominee"
                       >
                         {busy === 'flag' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Flag className="w-3.5 h-3.5" />}
@@ -465,7 +477,7 @@ export default function ViewNominees() {
                     <button
                       onClick={() => handleDelete(nom.id)}
                       disabled={!!busy}
-                      className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-500 hover:text-white hover:border-red-500 transition-all disabled:opacity-50"
+                      className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-gray-400 bg-white border border-gray-200 rounded-md hover:text-red-600 hover:border-red-300 transition-all disabled:opacity-50"
                       title="Remove nominee"
                     >
                       {busy === 'delete' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}

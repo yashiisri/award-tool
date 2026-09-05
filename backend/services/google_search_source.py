@@ -106,3 +106,38 @@ async def search_candidates(
 
     logger.info("google_search_source: %d unique candidates from %d queries", len(out), len(queries))
     return list(out.values())
+
+
+async def fetch_photo_via_google(name: str, context: str = "") -> str:
+    """Best-effort headshot/logo lookup via Google Custom Search's image mode —
+    a second, independent photo source alongside fetch_photo_via_tavily() in
+    research_engine.py, using the same GOOGLE_SEARCH_API_KEY/CX already
+    configured for candidate discovery. Returns "" if unconfigured, no results,
+    or on any error — callers should treat this as just one of several photo
+    sources to try, never a pipeline failure."""
+    if not settings.GOOGLE_SEARCH_API_KEY or not settings.GOOGLE_SEARCH_CX:
+        return ""
+    query = f"{name} {context}".strip()
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+            r = await client.get(
+                GOOGLE_CSE_URL,
+                params={
+                    "key": settings.GOOGLE_SEARCH_API_KEY,
+                    "cx": settings.GOOGLE_SEARCH_CX,
+                    "q": query,
+                    "searchType": "image",
+                    "num": 3,
+                    "safe": "active",
+                },
+            )
+        if r.status_code != 200:
+            logger.debug("Google CSE image search HTTP %d for '%s': %s", r.status_code, query, r.text[:200])
+            return ""
+        for item in r.json().get("items", []):
+            url = item.get("link", "")
+            if url:
+                return url
+    except Exception as exc:
+        logger.debug("Google CSE image search failed for '%s': %s", name, exc)
+    return ""

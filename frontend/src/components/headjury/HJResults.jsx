@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Trophy, Building2, Briefcase, Lock, Award } from 'lucide-react'
+import { Lock } from 'lucide-react'
 import api from '../../api/axios'
-import PageHeader from '../layout/PageHeader'
+import PageContextBar from '../layout/PageContextBar'
+import aimaLogo from '../../aima-logo.png'
 
 export default function HJResults() {
   const [searchParams] = useSearchParams()
@@ -38,217 +39,135 @@ export default function HJResults() {
   }
 
   return (
-    <div className="p-8">
-      <PageHeader
-        icon={Trophy}
-        title="Results"
-        subtitle="Final rankings — published by the admin once voting closes"
-        accent="#00338D"
-        light="#EEF3FF"
+    <>
+      <PageContextBar
+        breadcrumb={['Results']}
+        helpText="Official results for each award, once published by AIMA. These reflect the combined jury and Head Jury vote."
       />
+      <div style={{ minHeight: '100vh', background: 'var(--surface)', padding: '32px 36px', fontFamily: "'Inter', sans-serif" }}>
 
-      {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-2 border-[#00338D] border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-
-      {/* Nothing published */}
-      {!loading && awardResults.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 text-center">
-          <div className="w-16 h-16 bg-[#EEF3FF] rounded-2xl flex items-center justify-center mb-5">
-            <Lock className="w-8 h-8 text-[#00338D]" />
+        {loading && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '96px 0' }}>
+            <div style={{ width: 30, height: 30, border: '2px solid #00338D', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           </div>
-          <p className="font-black text-[#1a1a2e] text-lg mb-2">Results Not Published Yet</p>
-          <p className="text-gray-400 text-sm text-center max-w-xs">
-            The admin will publish the final results after voting closes. Check back soon.
+        )}
+
+        {!loading && awardResults.length === 0 && (
+          <div style={{ padding: '80px 24px', background: '#fff', borderRadius: 12, border: '1px solid var(--border-light)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Lock size={32} color="#00338D" strokeWidth={1.6} style={{ marginBottom: 18 }} />
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, color: 'var(--kpmg-navy)', marginBottom: 8 }}>Results Not Published Yet</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, maxWidth: 300 }}>
+              The admin will publish the final results after voting closes. Check back soon.
+            </p>
+          </div>
+        )}
+
+        {!loading && awardResults.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 56 }}>
+            {awardResults.map(({ award_id, award_name, nominees }) => (
+              <div key={award_id}>
+                <div style={{ marginBottom: 24 }}>
+                  <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 600, color: 'var(--kpmg-navy)', margin: 0 }}>
+                    Official Results — {award_name}
+                  </h1>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Managing India Awards 2026 — Published by AIMA</p>
+                </div>
+
+                {nominees.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No votes were recorded for this award.</p>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: nominees.length > 1 ? '1fr 1fr' : '1fr', gap: 16 }}>
+                      <PlaceCard nominee={nominees[0]} place="Winner" />
+                      {nominees.length > 1 && <PlaceCard nominee={nominees[1]} place="2nd Place" />}
+                    </div>
+
+                    {nominees.length > 2 && (
+                      <div style={{ marginTop: 32 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
+                          All Nominees
+                        </p>
+                        <div style={{ background: '#fff', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
+                          {nominees.slice(2).map((nom, i) => (
+                            <div key={nom.id} style={{
+                              display: 'flex', alignItems: 'center', gap: 14, padding: '13px 20px',
+                              borderBottom: i !== nominees.length - 3 ? '1px solid var(--border-light)' : 'none',
+                            }}>
+                              <div style={{
+                                width: 34, height: 34, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+                                background: '#F4F5F7', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                {nom.photo_url
+                                  ? <img src={nom.photo_url} alt={nom.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  : <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: 12 }}>{nom.name?.[0]}</span>}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom.name}</div>
+                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {[nom.designation, nom.organisation].filter(Boolean).join(' · ')}
+                                </div>
+                              </div>
+                              <span style={{ fontSize: 11.5, color: 'var(--text-muted)', flexShrink: 0 }}>{nom.total_score || 0} votes</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+
+            <div style={{ textAlign: 'center', paddingTop: 24 }}>
+              <img src={aimaLogo} alt="AIMA" style={{ height: 26, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }} />
+              <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Results certified by AIMA Managing Committee</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+function PlaceCard({ nominee, place }) {
+  if (!nominee) return null
+  const isWinner = place === 'Winner'
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 16, padding: 32,
+      border: `1px solid ${isWinner ? '#EADFC0' : 'var(--border-light)'}`,
+      borderTop: `3px solid ${isWinner ? 'var(--gold)' : '#94A3B8'}`,
+      boxShadow: isWinner
+        ? '0 20px 48px rgba(10,22,40,0.08), 0 4px 14px rgba(184,134,11,0.10)'
+        : '0 1px 4px rgba(0,0,0,0.04)',
+    }}>
+      <span style={{
+        display: 'block', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 20,
+        color: isWinner ? '#9A7B1F' : '#64748B',
+      }}>
+        {place}
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        <div style={{
+          width: isWinner ? 72 : 56, height: isWinner ? 72 : 56, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+          border: `2px solid ${isWinner ? 'var(--gold)' : '#E2E8F0'}`,
+          boxShadow: isWinner ? '0 0 0 4px rgba(184,134,11,0.12)' : 'none',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC',
+        }}>
+          {nominee.photo_url
+            ? <img src={nominee.photo_url} alt={nominee.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <span style={{ color: isWinner ? '#9A7B1F' : '#64748B', fontWeight: 700, fontSize: isWinner ? 24 : 18, fontFamily: "'Playfair Display', serif" }}>{nominee.name?.[0]}</span>}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: isWinner ? 22 : 18, fontWeight: 700, color: 'var(--kpmg-navy)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nominee.name}</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '5px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {[nominee.designation, nominee.organisation].filter(Boolean).join(' · ')}
+          </p>
+          <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '8px 0 0' }}>
+            {nominee.total_score || 0} vote{nominee.total_score === 1 ? '' : 's'}{isWinner ? ' — Most Votes' : ''}
           </p>
         </div>
-      )}
-
-      {/* Per-award results */}
-      {!loading && awardResults.length > 0 && (
-        <div className="space-y-12">
-          {awardResults.map(({ award_id, award_name, nominees }) => (
-            <div key={award_id}>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 bg-[#EEF3FF] rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Award className="w-4 h-4 text-[#00338D]" />
-                </div>
-                <h2 className="font-black text-[#1a1a2e] text-lg">{award_name}</h2>
-              </div>
-
-              {/* Podium — top 3 */}
-              {nominees.length >= 2 && (
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="flex flex-col items-center justify-end">
-                    <PodiumCard nominee={nominees[1]} position={2} height="h-44" />
-                  </div>
-                  <div className="flex flex-col items-center justify-end">
-                    <PodiumCard nominee={nominees[0]} position={1} height="h-56" />
-                  </div>
-                  <div className="flex flex-col items-center justify-end">
-                    {nominees[2]
-                      ? <PodiumCard nominee={nominees[2]} position={3} height="h-36" />
-                      : <div />}
-                  </div>
-                </div>
-              )}
-
-              {/* Full ranked list */}
-              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-[#00338D]" />
-                  <h3 className="font-black text-[#1a1a2e] text-xs uppercase tracking-wider">Leaderboard</h3>
-                </div>
-
-                {nominees.map((nom, i) => (
-                  <div
-                    key={nom.id}
-                    className={`flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors
-                      ${i !== nominees.length - 1 ? 'border-b border-gray-50' : ''}
-                      ${i === 0 ? 'bg-gradient-to-r from-amber-50/60 to-transparent' : ''}
-                      ${i === 1 ? 'bg-gradient-to-r from-gray-50/80 to-transparent' : ''}
-                    `}
-                  >
-                    <div className="w-10 flex-shrink-0 flex items-center justify-center">
-                      <RankBadge position={i + 1} />
-                    </div>
-
-                    <div className={`
-                      w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden
-                      ${i === 0 ? 'ring-2 ring-amber-400 ring-offset-1' : ''}
-                      ${i === 1 ? 'ring-2 ring-gray-300 ring-offset-1' : ''}
-                      ${i === 2 ? 'ring-2 ring-orange-300 ring-offset-1' : ''}
-                    `}
-                      style={{ background: i === 0 ? 'linear-gradient(135deg,#FFD700,#FFA500)' : i === 1 ? 'linear-gradient(135deg,#C0C0C0,#A8A8A8)' : i === 2 ? 'linear-gradient(135deg,#CD7F32,#A0522D)' : '#EEF3FF' }}
-                    >
-                      {nom.photo_url && (
-                        <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover"
-                          onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'inline' }} />
-                      )}
-                      <span className={`font-black text-sm ${i < 3 ? 'text-white' : 'text-[#00338D]'}`} style={{ display: nom.photo_url ? 'none' : 'inline' }}>
-                        {nom.name?.[0]}
-                      </span>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className={`font-bold text-sm truncate ${i === 0 ? 'text-amber-700' : i === 1 ? 'text-gray-600' : 'text-[#1a1a2e]'}`}>
-                        {nom.name}
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        <span className="flex items-center gap-1 text-gray-400 text-xs truncate">
-                          <Briefcase className="w-3 h-3 flex-shrink-0" />{nom.designation}
-                        </span>
-                        <span className="flex items-center gap-1 text-gray-400 text-xs truncate">
-                          <Building2 className="w-3 h-3 flex-shrink-0" />{nom.organisation}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-right flex-shrink-0">
-                      <div className={`font-black text-base ${i === 0 ? 'text-amber-500' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-orange-400' : 'text-[#00338D]'}`}>
-                        {nom.total_score || 0}
-                      </div>
-                      <div className="text-gray-400 text-xs">votes</div>
-                    </div>
-
-                    <div className="w-20 flex-shrink-0">
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            i === 0 ? 'bg-gradient-to-r from-amber-400 to-yellow-300' :
-                            i === 1 ? 'bg-gradient-to-r from-gray-400 to-gray-300' :
-                            i === 2 ? 'bg-gradient-to-r from-orange-400 to-orange-300' :
-                            'bg-gradient-to-r from-[#00338D] to-[#5B2D6E]'
-                          }`}
-                          style={{ width: `${((nom.total_score || 0) / (nominees[0]?.total_score || 1)) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Podium card ───────────────────────────────────────────────────────────────
-
-function PodiumCard({ nominee, position, height }) {
-  const configs = {
-    1: {
-      label: '1st Place', bg: 'bg-gradient-to-b from-amber-50 to-amber-100', border: 'border-amber-300',
-      ring: 'ring-4 ring-amber-400 ring-offset-2', nameColor: 'text-amber-800',
-      badge: 'bg-gradient-to-r from-amber-400 to-yellow-400 text-white', avatarBg: 'from-amber-400 to-yellow-500',
-      shadow: 'shadow-xl shadow-amber-200/60',
-    },
-    2: {
-      label: '2nd Place', bg: 'bg-gradient-to-b from-gray-50 to-gray-100', border: 'border-gray-300',
-      ring: 'ring-2 ring-gray-300 ring-offset-1', nameColor: 'text-gray-700',
-      badge: 'bg-gradient-to-r from-gray-400 to-gray-500 text-white', avatarBg: 'from-gray-400 to-gray-500',
-      shadow: 'shadow-lg shadow-gray-200/60',
-    },
-    3: {
-      label: '3rd Place', bg: 'bg-gradient-to-b from-orange-50 to-orange-100', border: 'border-orange-300',
-      ring: 'ring-2 ring-orange-300 ring-offset-1', nameColor: 'text-orange-800',
-      badge: 'bg-gradient-to-r from-orange-400 to-orange-500 text-white', avatarBg: 'from-orange-400 to-orange-500',
-      shadow: 'shadow-lg shadow-orange-200/40',
-    },
-  }
-
-  const c = configs[position]
-  if (!nominee) return <div />
-
-  return (
-    <div className={`w-full ${height} ${c.bg} border-2 ${c.border} rounded-2xl ${c.shadow} flex flex-col items-center justify-end p-4 relative overflow-hidden`}>
-      {position === 1 && (
-        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
-      )}
-      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${c.avatarBg} ${c.ring} flex items-center justify-center mb-3 overflow-hidden flex-shrink-0`}>
-        {nominee.photo_url && (
-          <img src={nominee.photo_url} alt={nominee.name} className="w-full h-full object-cover"
-            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'inline' }} />
-        )}
-        <span className="text-white text-xl font-black" style={{ display: nominee.photo_url ? 'none' : 'inline' }}>{nominee.name?.[0]}</span>
       </div>
-      <p className={`font-black text-xs text-center leading-tight mb-1 ${c.nameColor} line-clamp-2`}>
-        {nominee.name}
-      </p>
-      <p className="text-gray-400 text-xs text-center truncate w-full mb-2">{nominee.organisation}</p>
-      <span className={`px-2.5 py-1 rounded-xl text-xs font-black ${c.badge}`}>
-        {c.label}
-      </span>
-    </div>
-  )
-}
-
-// ── Rank badge ────────────────────────────────────────────────────────────────
-
-function RankBadge({ position }) {
-  if (position === 1) return (
-    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-400 flex items-center justify-center shadow-md shadow-amber-200">
-      <span className="text-white font-black text-xs">1st</span>
-    </div>
-  )
-  if (position === 2) return (
-    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center shadow-sm">
-      <span className="text-white font-black text-xs">2nd</span>
-    </div>
-  )
-  if (position === 3) return (
-    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-sm">
-      <span className="text-white font-black text-xs">3rd</span>
-    </div>
-  )
-  return (
-    <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
-      <span className="text-gray-400 font-black text-xs">#{position}</span>
     </div>
   )
 }

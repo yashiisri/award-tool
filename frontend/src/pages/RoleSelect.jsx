@@ -10,21 +10,17 @@ import { useTheme } from '../context/ThemeContext'
 const ROLES = [
   {
     role: 'head_jury',
-    org: 'AIMA',
-    title: 'Head Jury',
-    desc: 'Consolidate jury scores, oversee the evaluation process and certify final rankings.',
+    title: 'Head Jury Member',
     useKpmg: false,
   },
   {
     role: 'jury',
-    org: 'AIMA',
     title: 'Jury Member',
-    desc: 'Review approved nominees, evaluate against defined criteria and submit your rankings.',
     useKpmg: false,
   },
 ]
 
-function RoleCard({ role, org, title, desc, useKpmg }) {
+function RoleCard({ role, title, useKpmg }) {
   const nav = useNavigate()
   const [hov, setHov] = useState(false)
 
@@ -62,11 +58,11 @@ function RoleCard({ role, org, title, desc, useKpmg }) {
 
       {/* Content */}
       <div style={{ padding: '24px 28px 28px', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--kpmg-blue)', marginBottom: 6, opacity: 0.7 }}>{org}</div>
-          <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--kpmg-navy)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>{title}</h3>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, color: '#9CA3AF', fontWeight: 500, marginBottom: 2 }}>I am a</div>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: '#0A1628', letterSpacing: '-0.01em', lineHeight: 1.3, marginBottom: 8 }}>{title}</h3>
+          <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>AIMA Managing India Awards 2026</p>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.65, flex: 1 }}>{desc}</p>
 
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -102,8 +98,6 @@ export default function RoleSelect() {
   const backBtnBorder = isAima ? 'var(--border)' : 'rgba(255,255,255,0.2)'
   const backBtnText   = isAima ? 'var(--text-secondary)' : 'rgba(255,255,255,0.6)'
   const headingColor  = isAima ? 'var(--kpmg-navy)' : '#fff'
-  const bodyColor     = isAima ? 'var(--text-secondary)' : 'rgba(255,255,255,0.4)'
-  const eyebrowText   = isAima ? '#9A7B1F' : 'var(--gold)'
   const footerLine    = isAima ? 'var(--border)' : 'rgba(255,255,255,0.15)'
   const footerText    = isAima ? 'var(--text-muted)' : 'rgba(255,255,255,0.2)'
   const logoVariant   = isAima ? 'light' : 'dark'
@@ -146,7 +140,7 @@ export default function RoleSelect() {
         <div style={{ textAlign: 'center', marginBottom: 52, maxWidth: 560 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 20 }}>
             <div style={{ width: 40, height: 1, background: 'var(--gold)', opacity: 0.6 }} />
-            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: eyebrowText, opacity: 0.9 }}>Select Your Role</span>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: isAima ? '#9A7B1F' : 'var(--gold)', opacity: 0.9 }}>Select Your Role</span>
             <div style={{ width: 40, height: 1, background: 'var(--gold)', opacity: 0.6 }} />
           </div>
           <h1 style={{
@@ -160,9 +154,6 @@ export default function RoleSelect() {
           }}>
             How will you be<br />accessing the platform?
           </h1>
-          <p style={{ color: bodyColor, fontSize: 14, fontWeight: isAima ? 400 : 300, lineHeight: 1.6 }}>
-            Each role provides a purpose-built workspace with the appropriate access and tools.
-          </p>
         </div>
 
         {/* Cards */}

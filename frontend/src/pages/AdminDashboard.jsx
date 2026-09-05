@@ -24,7 +24,7 @@ const NAV = [
 export default function AdminDashboard({ onLogout, username }) {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--surface)' }}>
-      <Sidebar navItems={NAV} role="admin" username={username} onLogout={onLogout} showBackButton />
+      <Sidebar navItems={NAV} role="admin" username={username} onLogout={onLogout} />
       <main className="flex-1 overflow-auto">
         <Routes>
           <Route path="/awards"       element={<Awards />} />

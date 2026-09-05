@@ -476,7 +476,7 @@
 // }
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState, useEffect } from 'react'
-import { ArrowRight, Users, BarChart3, Trophy, CheckCircle, Lock, Sparkles } from 'lucide-react'
+import { ArrowRight, Lock, CheckCircle, Clock, FileText, UserPlus } from 'lucide-react'
 import LogoPair from '../components/layout/LogoPair'
 import ThemeToggle from '../components/layout/ThemeToggle'
 import { useTheme } from '../context/ThemeContext'
@@ -492,48 +492,17 @@ function useReveal() {
   return [ref, v]
 }
 
-const FEATURES = [
-  { icon: Sparkles,    n: '01', title: 'AI Nominee Discovery',     desc: 'The system searches public sources and suggests nominees who fit the award category. Admin checks each suggestion before it goes any further.' },
-  { icon: Users,       n: '02', title: 'Multi-Role Governance',    desc: 'Admin, Head Jury, and Jury each log in separately and only see the screens and actions their role is allowed to use.' },
-  { icon: Trophy,      n: '03', title: 'Structured Ranking',       desc: 'Every jury member scores each nominee against the same criteria. The scores are combined using set weights to produce one ranked list.' },
-  { icon: BarChart3,   n: '04', title: 'Real-Time Consensus',      desc: 'A leaderboard updates as jury members submit their scores, so the Head Jury can see where things stand at any point, before the result is final.' },
-  { icon: CheckCircle, n: '05', title: 'Admin-Controlled Vetting', desc: 'Admin reviews and approves every nominee first. Jury members only ever see nominees that have already been approved.' },
-  { icon: Lock,        n: '06', title: 'Complete Audit Trail',     desc: 'Every action is logged with who did it and when, so the full history of the award cycle can be checked later if needed.' },
+const TRUST_POINTS = [
+  { icon: Lock,        label: 'Confidential', sub: 'your vote is private, always' },
+  { icon: CheckCircle, label: 'Verified nominees', sub: 'every profile is AI-researched and sourced' },
+  { icon: UserPlus,        label: 'Secured', sub: 'review, nominate, vote at your pace' },
 ]
 
-const STEPS = [
-  { n: '01', title: 'Create Award',      desc: 'Admin sets up the award: the category, the scoring criteria, and how many nominees are needed.', icon: Trophy },
-  { n: '02', title: 'Discover Nominees', desc: 'The system suggests nominees using public information. Admin reviews the list and approves who moves forward.', icon: Sparkles },
-  { n: '03', title: 'Jury Evaluation',   desc: 'Jury members score each approved nominee on their own. Head Jury then reviews all the scores together.', icon: Users },
-  { n: '04', title: 'Final Result',      desc: 'Head Jury confirms the final ranking. The full record of the process is saved and can be looked up later.', icon: CheckCircle },
+const JOURNEY_STEPS = [
+  { icon: FileText, title: 'Review the nominees', desc: 'Browse the shortlist for each award. Every nominee has a full profile - background, achievements, financials, researched and verified before it reaches you.' },
+  { icon: UserPlus,  title: 'Suggest your nominees with AI search', desc: "If you feel someone deserving is missing, suggest them by name or organization. Their profile will be built automatically, no research required from you." },
+  { icon: CheckCircle, title: 'Cast your official vote', desc: 'When voting opens, select your 1st and 2nd choice for each award. Your vote is final once confirmed & submitted by you - confidential, secure, and permanently recorded.' },
 ]
-
-function FeatureCard({ icon: Icon, n, title, desc, delay }) {
-  const [ref, v] = useReveal()
-  const [hov, setHov] = useState(false)
-  return (
-    <div ref={ref} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{
-        opacity: v ? 1 : 0,
-        transform: v ? 'none' : 'translateY(20px)',
-        transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms, border-color 0.15s, box-shadow 0.15s`,
-        background: '#fff',
-        border: `1px solid ${hov ? '#A8BBDA' : '#E2E8F0'}`,
-        borderTop: `3px solid ${hov ? 'var(--kpmg-blue)' : '#E2E8F0'}`,
-        padding: '28px 24px',
-        boxShadow: hov ? '0 8px 28px rgba(0,51,141,0.09)' : '0 1px 4px rgba(0,0,0,0.04)',
-      }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div style={{ width: 40, height: 40, background: hov ? 'var(--kpmg-blue)' : '#EEF3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
-          <Icon size={18} color={hov ? '#fff' : 'var(--kpmg-blue)'} strokeWidth={1.6} />
-        </div>
-        <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 400, color: '#DDE4EF', letterSpacing: '-0.02em' }}>{n}</span>
-      </div>
-      <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '-0.01em' }}>{title}</h3>
-      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{desc}</p>
-    </div>
-  )
-}
 
 export default function Landing() {
   const nav = useNavigate()
@@ -555,9 +524,6 @@ export default function Landing() {
   const logoVariant = isAima ? 'light' : 'dark'
   const navText      = isAima ? 'var(--kpmg-navy)' : 'rgba(255,255,255,0.88)'
   const navSubText   = isAima ? 'var(--text-muted)' : 'rgba(255,255,255,0.35)'
-  const footerBg      = isAima ? '#FAFBFD' : '#000F2B'
-  const footerText    = isAima ? 'var(--text-muted)' : 'rgba(255,255,255,0.4)'
-  const footerBorder  = isAima ? '1px solid var(--border-light)' : 'none'
   const NAV_HEIGHT = 76
 
   return (
@@ -601,7 +567,8 @@ export default function Landing() {
           </h1>
 
           <p style={{ fontSize: 15, color: bodyColor, lineHeight: 1.75, maxWidth: 500, marginBottom: 40, fontWeight: isAima ? 400 : 300 }}>
-            One platform to run the full Managing India Awards cycle: find nominees, review and approve them, have the jury score them, and confirm the final result.
+            The Managing India Awards — Jury Portal<br />
+            India's most respected management awards, decided by India's most respected leaders. Welcome, and thank you for being part of this.
           </p>
 
           <div style={{ display: 'flex', gap: 12 }}>
@@ -623,8 +590,8 @@ export default function Landing() {
           {[
             { value: '67+', label: 'Local Management Associations' },
             { value: '37,000+', label: 'AIMA Members Nationally' },
-            { value: '70th', label: 'Edition of Managing India Awards' },
-            { value: '600+', label: 'Corporate & Institutional Members' },
+            { value: '31st', label: 'Edition of Managing India Awards' },
+            { value: '6000+', label: 'Corporate & Institutional Members' },
           ].map((s, i) => (
             <div key={i} style={{ flex: 1, padding: '28px 24px', borderRight: i < 3 ? '1px solid var(--border-light)' : 'none' }}>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 600, color: 'var(--kpmg-blue)', lineHeight: 1, marginBottom: 6 }}>{s.value}</div>
@@ -634,62 +601,89 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Features ── */}
-      <section id="features" style={{ maxWidth: 1160, margin: '0 auto', padding: '72px 40px' }}>
-        <div style={{ marginBottom: 48 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{ width: 32, height: 2, background: 'var(--gold)' }} />
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--kpmg-blue)' }}>Platform Capabilities</span>
+      {/* ── Section A: Why Your Vote Matters ── */}
+      <section id="features" style={{ background: '#fff' }}>
+        <div style={{ maxWidth: 1160, margin: '0 auto', padding: '80px 40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, alignItems: 'center' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+              <span style={{ color: '#B8860B', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' }}>— Your Role</span>
+            </div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 500, color: '#0A1628', lineHeight: 1.25, maxWidth: 480, marginBottom: 22 }}>
+              Your vote shapes India's most respected management honour.
+            </h2>
+            <p style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.8, maxWidth: 520, marginBottom: 32 }}>
+              Since 1995, the AIMA Managing India Awards have recognised the leaders who built modern India.
+              <br />
+              As a jury member, you are part of a select group of leaders entrusted with that decision. Your evaluation is conducted independently, confidentially, and in a digitally secured environment which determines who joins the legacy of AIMA.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28 }}>
+              {TRUST_POINTS.map(t => (
+                <div key={t.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <t.icon size={14} color="#6B7280" strokeWidth={1.8} />
+                  <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>{t.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 34, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.2, maxWidth: 480 }}>
-            What the platform actually does,<br />step by step.
-          </h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          {FEATURES.map((f, i) => <FeatureCard key={f.n} {...f} delay={i * 60} />)}
+
+          <div style={{
+            background: '#fff', border: '1px solid #EADFC0', borderTop: '3px solid #B8860B', borderRadius: 16, padding: 40, position: 'relative',
+            boxShadow: '0 20px 48px rgba(10,22,40,0.10), 0 4px 14px rgba(184,134,11,0.10)',
+          }}>
+            <span style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: 64, color: '#B8860B', opacity: 0.5, lineHeight: 0.6, marginBottom: 12 }}>&ldquo;</span>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontStyle: 'italic', fontSize: 18, color: '#0A1628', lineHeight: 1.7 }}>
+              The quality of AIMA's jury has always been its strength. These are people who have built India's economy - they know what real leadership looks like.
+            </p>
+            <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 20 }}>- AIMA Managing India Awards</p>
+          </div>
         </div>
       </section>
 
-      {/* ── How it works ── */}
-      <section style={{ background: '#fff', borderTop: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>
-        <div style={{ maxWidth: 1160, margin: '0 auto', padding: '72px 40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{ width: 32, height: 2, background: 'var(--gold)' }} />
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--kpmg-blue)' }}>Process</span>
+      {/* ── Section B: Your Journey as Jury Member ── */}
+      <section style={{ background: '#F8FAFC', borderTop: '1px solid var(--border-light)' }}>
+        <div style={{ maxWidth: 1160, margin: '0 auto', padding: '80px 40px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <div style={{ marginBottom: 14 }}>
+              <span style={{ color: '#B8860B', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' }}>— Your Journey</span>
+            </div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, fontWeight: 500, color: '#0A1628' }}>
+              Three simple steps
+            </h2>
           </div>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 34, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.2, marginBottom: 56 }}>
-            The four steps, in order.
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, position: 'relative' }}>
-            <div style={{ position: 'absolute', top: 20, left: 20, right: 20, height: 1, background: 'linear-gradient(90deg, var(--kpmg-blue), var(--kpmg-blue), transparent)', opacity: 0.2 }} />
-            {STEPS.map((s, i) => (
-              <div key={i} style={{ paddingRight: 32, paddingBottom: 8 }}>
-                <div style={{ width: 40, height: 40, marginBottom: 24, background: i === 3 ? 'var(--kpmg-blue)' : '#fff', border: `2px solid ${i === 3 ? 'var(--kpmg-blue)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: i === 3 ? '0 4px 16px rgba(0,51,141,0.25)' : 'none' }}>
-                  <s.icon size={16} color={i === 3 ? '#fff' : 'var(--kpmg-blue)'} strokeWidth={1.6} />
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 16, left: '16.5%', right: '16.5%', height: 1, background: '#B8860B', opacity: 0.3 }} />
+            {JOURNEY_STEPS.map((s, i) => (
+              <div key={i} style={{ padding: '0 28px', textAlign: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20, position: 'relative', zIndex: 1 }}>
+                  <div style={{ width: 32, height: 32, background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <s.icon size={26} color="#00338D" strokeWidth={1.6} />
+                  </div>
                 </div>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.16em', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 8 }}>{s.n}</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10, letterSpacing: '-0.01em' }}>{s.title}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{s.desc}</div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0A1628', marginBottom: 10 }}>{s.title}</h3>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.7 }}>{s.desc}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* ── Ready to move ── */}
-      <section style={{ background: heroBg, position: 'relative', overflow: 'hidden', transition: 'background 0.2s' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: 'var(--gold)' }} />
-        <div style={{ maxWidth: 1160, margin: '0 auto', padding: '64px 40px', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 30, fontWeight: 500, color: headingColor, marginBottom: 12 }}>Ready to move forward?</h2>
-          <p style={{ color: bodyColor, fontSize: 14, fontWeight: isAima ? 400 : 300, maxWidth: 480, margin: '0 auto' }}>
-            Use the Access Platform button above to log in and continue the award cycle for your role.
+          <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginTop: 40 }}>
+            Voting for each award opens and closes on a schedule set by AIMA. You will see the current status on your dashboard.
           </p>
+
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 40 }}>
+            <button onClick={() => nav('/select-role')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px', background: 'var(--gold)', color: 'var(--kpmg-navy)', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase', transition: 'opacity 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.88'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+              Access Platform <ArrowRight size={13} />
+            </button>
+          </div>
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer style={{ background: footerBg, borderTop: footerBorder, padding: '20px 40px', textAlign: 'center', transition: 'background 0.2s' }}>
-        <span style={{ color: footerText, fontSize: 11 }}>© 2026 Managing India Awards Platform. All rights reserved.</span>
+      <footer style={{ background: '#fff', borderTop: '1px solid #B8860B', padding: '24px 10%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <LogoPair variant="light" kpmgHeight={20} aimaHeight={24} gap={12} />
+        <span style={{ color: '#9CA3AF', fontSize: 12 }}>© 2026 All India Management Association. All rights reserved.</span>
+        <span style={{ color: '#9CA3AF', fontSize: 12 }}>Confidential — Jury Use Only</span>
       </footer>
     </div>
   )

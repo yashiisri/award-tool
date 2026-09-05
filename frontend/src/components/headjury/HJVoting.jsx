@@ -5,18 +5,30 @@ import {
   ArrowLeft, Award, Check,
 } from 'lucide-react'
 import api from '../../api/axios'
-import PageHeader from '../layout/PageHeader'
 import RankMedal from '../layout/RankMedal'
+
+function GoldHeader({ title, subtitle }) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2.5 mb-2.5">
+        <div style={{ width: 26, height: 2, background: 'var(--gold)' }} />
+        <span style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--gold-bright)', fontWeight: 700 }} className="uppercase">
+          AIMA · Head Jury Portal
+        </span>
+      </div>
+      <h1 style={{ fontFamily: "'Playfair Display', serif", color: 'var(--kpmg-navy)' }} className="text-[26px] font-semibold tracking-tight">
+        {title}
+      </h1>
+      {subtitle && <p style={{ color: 'var(--text-muted)' }} className="text-[13px] mt-1">{subtitle}</p>}
+    </div>
+  )
+}
 import aimaLogo from '../../aima-logo.png'
 
-// Same 5-tier palette as RankMedal.jsx (gold/silver/bronze/blue/plum) — no
-// yellow-and-grey flatness, each rank reads as visually distinct.
+// Top 2 only — gold/silver palette, matching RankMedal.jsx's tier colors.
 const RANK_META = [
   { key: 'first',  label: '1st Choice', rank: 1, ring: '#D4AF37', badge: 'linear-gradient(135deg, #D4AF37, #B8860B)' },
   { key: 'second', label: '2nd Choice', rank: 2, ring: '#B0B7C0', badge: 'linear-gradient(135deg, #B0B7C0, #8A94A0)' },
-  { key: 'third',  label: '3rd Choice', rank: 3, ring: '#C08552', badge: 'linear-gradient(135deg, #C08552, #9C6B3E)' },
-  { key: 'fourth', label: '4th Choice', rank: 4, ring: '#0057D9', badge: 'linear-gradient(135deg, #0057D9, #00338D)' },
-  { key: 'fifth',  label: '5th Choice', rank: 5, ring: '#7C4B94', badge: 'linear-gradient(135deg, #7C4B94, #5B2D6E)' },
 ]
 
 function getInitials(name = '') {
@@ -42,15 +54,17 @@ export default function HJVoting() {
   const fetchData = async (awardId) => {
     setLoading(true)
     try {
-      const [nomRes, ctrlRes, voteRes, awardRes] = await Promise.all([
+      const [nomRes, voteRes, awardRes] = await Promise.all([
         api.get(`/jury/awards/${awardId}/nominees`),
-        api.get(`/jury/vote-control/${awardId}`),
         api.get(`/jury/my-vote/${awardId}`).catch(() => ({ data: null })),
         api.get('/jury/awards'),
       ])
       const award = awardRes.data.find(a => a.id === awardId)
       setAwardName(award?.name || '')
-      setVotingOpen(ctrlRes.data.voting_enabled || false)
+      // voting_open mirrors the server-side gate in POST /jury/vote-ranked:
+      // true once every jury-suggested nominee is Head-Jury-approved (or the
+      // admin's manual voting_enabled override is on) — see jury.py.
+      setVotingOpen(award?.voting_open || false)
       setNominees(nomRes.data)
 
       if (voteRes.data) {
@@ -64,7 +78,7 @@ export default function HJVoting() {
     finally { setLoading(false) }
   }
 
-  const maxPicks = Math.min(5, nominees.length)
+  const maxPicks = Math.min(2, nominees.length)
 
   const handlePick = (nomineeId) => {
     if (!votingOpen || submitted) return
@@ -95,11 +109,9 @@ export default function HJVoting() {
   if (!awardFromUrl) {
     return (
       <div className="p-8">
-        <PageHeader icon={Trophy} title="Your Vote" subtitle="Rank your top nominees" accent="#00338D" light="#EEF3FF" />
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 text-center">
-          <div className="w-14 h-14 bg-[#EEF3FF] rounded-2xl flex items-center justify-center mb-4">
-            <Award className="w-7 h-7 text-[#00338D]" />
-          </div>
+        <GoldHeader title="Your Vote" subtitle="Rank your top nominees" />
+        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-xl border border-gray-100 text-center">
+          <Award className="w-8 h-8 mb-4" style={{ color: 'var(--gold)' }} strokeWidth={1.5} />
           <p className="text-gray-600 font-semibold text-sm mb-1">No award selected</p>
           <p className="text-gray-400 text-xs mb-6">Navigate to Awards and select an award to begin voting.</p>
           <button
@@ -199,12 +211,9 @@ export default function HJVoting() {
         </div>
       )}
 
-      <PageHeader
-        icon={Trophy}
+      <GoldHeader
         title="Your Vote"
         subtitle={`Tap to rank your 1st through ${maxPicks > 1 ? RANK_META[maxPicks - 1]?.label.replace(' Choice', '') : ''} choice nominee`}
-        accent="#00338D"
-        light="#EEF3FF"
       />
 
       <div className="flex items-center gap-3 mb-6">
@@ -226,8 +235,8 @@ export default function HJVoting() {
         <div className="mb-6 flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
           <Lock className="w-5 h-5 text-gray-400 flex-shrink-0" />
           <div>
-            <p className="font-semibold text-gray-700 text-sm">Voting for this award has not yet opened</p>
-            <p className="text-gray-400 text-xs mt-0.5">You will be notified when voting begins.</p>
+            <p className="font-semibold text-gray-700 text-sm">Voting is closed for this award</p>
+            <p className="text-gray-400 text-xs mt-0.5">All jury-suggested nominees must be approved by Head Jury before voting opens.</p>
           </div>
         </div>
       )}
@@ -278,7 +287,7 @@ export default function HJVoting() {
               <div
                 key={nom.id}
                 onClick={() => handlePick(nom.id)}
-                className={`bg-white border rounded-2xl overflow-hidden transition-all relative ${
+                className={`bg-white border rounded-lg overflow-hidden transition-all relative ${
                   disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-lg hover:-translate-y-0.5'
                 } ${meta ? 'border-transparent' : 'border-gray-100'}`}
                 style={meta ? { boxShadow: `0 0 0 2px ${meta.ring}` } : undefined}
@@ -289,20 +298,20 @@ export default function HJVoting() {
                   </div>
                 )}
 
-                <div className="relative pt-7 pb-4 px-5 bg-gradient-to-b from-[#EEF2FA] to-white text-center">
+                <div className="relative pt-7 pb-4 px-5 text-center">
                   <div
-                    className={`w-20 h-20 rounded-full mx-auto overflow-hidden relative ring-4 ring-white ${nom.photo_url ? 'shadow-md' : ''}`}
-                    style={{ background: nom.photo_url ? 'linear-gradient(135deg, #00338D, #0057D9)' : '#E2E5EA' }}
+                    className="w-16 h-16 rounded-full mx-auto overflow-hidden relative"
+                    style={{ background: nom.photo_url ? 'transparent' : '#EEF3FF' }}
                   >
                     {nom.photo_url && (
                       <img src={nom.photo_url} alt={nom.name} className="w-full h-full object-cover"
                         onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
                     )}
                     <div className="w-full h-full items-center justify-center absolute inset-0" style={{ display: nom.photo_url ? 'none' : 'flex' }}>
-                      <span className="text-[#6B7280] text-lg font-semibold">{getInitials(nom.name)}</span>
+                      <span style={{ color: 'var(--kpmg-blue)' }} className="text-lg font-semibold">{getInitials(nom.name)}</span>
                     </div>
                   </div>
-                  <h3 className="mt-3 font-bold text-[#0A1628] text-[15px] leading-snug truncate">{nom.name}</h3>
+                  <h3 style={{ fontFamily: "'Playfair Display', serif" }} className="mt-3 font-semibold text-[#0A1628] text-[15px] leading-snug truncate">{nom.name}</h3>
                   <div className="flex items-center justify-center gap-1.5 text-gray-400 text-xs mt-1"><Briefcase className="w-3 h-3 flex-shrink-0" /><span className="truncate">{nom.designation}</span></div>
                   {nom.organisation && (
                     <div className="flex items-center justify-center gap-1.5 text-gray-400 text-xs mt-0.5"><Building2 className="w-3 h-3 flex-shrink-0" /><span className="truncate">{nom.organisation}</span></div>
